@@ -480,11 +480,26 @@
         const mushStemMesh = new THREE.InstancedMesh(mushStemGeo, mushStemMat, 8000);
         const mushCapMesh = new THREE.InstancedMesh(mushCapGeo, mushMat, 8000);
 
-        // Grass
-        const grassGeo = new THREE.PlaneGeometry(3, 3);
-        const grassMat = new THREE.MeshBasicMaterial({ color: 0x33aa33, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-        const grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, 50000);
-
+        // 3D Crossed Grass Geometry
+        const grassGeo = new THREE.BufferGeometry();
+        const gVertices = [];
+        const gUVs = [];
+        // Plane 1
+        gVertices.push(-1.5, 0, 0,  1.5, 0, 0,  -1.5, 3, 0,   1.5, 0, 0,  1.5, 3, 0,  -1.5, 3, 0);
+        // Plane 2 (rotated 90deg)
+        gVertices.push(0, 0, -1.5,  0, 0, 1.5,  0, 3, -1.5,   0, 0, 1.5,  0, 3, 1.5,  0, 3, -1.5);
+        grassGeo.setAttribute('position', new THREE.Float32BufferAttribute(gVertices, 3));
+        
+        // Create grass colors attribute for variety
+        const grassCount = 60000;
+        const grassMesh = new THREE.InstancedMesh(grassGeo, new THREE.MeshStandardMaterial({ 
+            color: 0x33aa33, 
+            side: THREE.DoubleSide, 
+            roughness: 1.0,
+            flatShading: false
+        }), grassCount);
+        const grassColors = new Float32Array(grassCount * 3);
+        
         const rockGeo = new THREE.DodecahedronGeometry(3, 0); 
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 });
         const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 10000);
@@ -494,6 +509,7 @@
         const bushMesh = new THREE.InstancedMesh(bushGeo, bushMat, bushCount);
         
         const dummy = new THREE.Object3D();
+        const dummyColor = new THREE.Color();
         const collisionGrid = {}; 
 
         function addToGrid(x, z, r) {
@@ -568,11 +584,19 @@
                         dummy.updateMatrix();
                         bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
                     }
-                    if(gIdx < 50000 && biome.type === 'GRASSLAND') {
-                        dummy.position.set(bx, y+1.5, bz);
+                    if(gIdx < grassCount && biome.type === 'GRASSLAND') {
+                        dummy.position.set(bx, y, bz);
+                        const s = 0.8 + Math.random() * 0.6; 
+                        dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*3, 0);
                         dummy.updateMatrix();
-                        grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
+                        grassMesh.setMatrixAt(gIdx, dummy.matrix); 
+                        
+                        // Vary grass color
+                        const gVar = Math.random() * 0.2;
+                        dummyColor.setRGB(0.2 + gVar, 0.6 + gVar, 0.2);
+                        grassMesh.setColorAt(gIdx, dummyColor);
+                        gIdx++;
                     }
                     if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
                         dummy.position.set(bx, y, bz);
@@ -584,6 +608,7 @@
                 }
             }
             bushMesh.count = bIdx; grassMesh.count = gIdx; rockMesh.count = rIdx;
+            grassMesh.instanceColor.needsUpdate = true;
             scene.add(bushMesh); scene.add(grassMesh); scene.add(rockMesh);
         }
         
@@ -765,15 +790,22 @@
             let maxSpeed = isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
             
             if (isLocked || isMouseDown) {
-                const fwdX = Math.sin(player.angle); const fwdZ = Math.cos(player.angle);
-                const rightX = Math.sin(player.angle - Math.PI/2); const rightZ = Math.cos(player.angle - Math.PI/2);
+                // FIXED STRAFING LOGIC
+                const fwdX = Math.sin(player.angle); 
+                const fwdZ = Math.cos(player.angle);
+                const rightX = Math.cos(player.angle); 
+                const rightZ = -Math.sin(player.angle);
+
                 if (keys.w) { dx -= fwdX; dz -= fwdZ; } 
                 if (keys.s) { dx += fwdX; dz += fwdZ; }
-                if (keys.a) { dx -= rightX; dz -= rightZ; } 
-                if (keys.d) { dx += rightX; dz += rightZ; } 
+                if (keys.a) { dx -= rightX; dz -= rightZ; } // Left
+                if (keys.d) { dx += rightX; dz += rightZ; } // Right
             } else {
-                if (keys.a) player.angle += 0.04; if (keys.d) player.angle -= 0.04;
-                const fwdX = Math.sin(player.angle); const fwdZ = Math.cos(player.angle);
+                // Tank controls when unlocked
+                if (keys.a) player.angle += 0.04; 
+                if (keys.d) player.angle -= 0.04;
+                const fwdX = Math.sin(player.angle); 
+                const fwdZ = Math.cos(player.angle);
                 if (keys.w) { dx -= fwdX; dz -= fwdZ; }
                 if (keys.s) { dx += fwdX; dz += fwdZ; }
             }
