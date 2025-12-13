@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Grand Bosnia: Overgrown</title>
+    <title>Grand Bosnia: Overgrown (Rabbit Update)</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -107,7 +107,7 @@
 
     <div id="start-screen">
         <h1 style="font-size:60px; margin-bottom:0px; letter-spacing: 5px; color: #fff;">PLANET BOSNIA</h1>
-        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Overgrown Update</p>
+        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">The Rabbit Migration</p>
         <div class="btn" onclick="startGame()">INITIATE LANDING</div>
         <div id="loading">Generating Ecosystem...</div>
     </div>
@@ -382,7 +382,6 @@
             const group = new THREE.Group();
             const suitMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
             const padMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }); 
-            // Tank removed!
             
             const bodyOffsetZ = 0.05; 
 
@@ -415,22 +414,60 @@
 
         // --- ANIMALS ---
         const animals = [];
+        
+        // NEW DETAILED BUNNY BUILDER
+        function createDetailedBunny(scale, colorHex) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.8, flatShading: true });
+            
+            // Body (Dodecahedron looks good low-poly/organic)
+            const body = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 1), mat);
+            body.scale.set(1.2, 0.9, 1.5);
+            body.position.y = 0.4;
+            body.castShadow = true;
+            group.add(body);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 1), mat);
+            head.position.set(0, 0.75, 0.6);
+            head.scale.set(1, 0.9, 1.1);
+            group.add(head);
+
+            // Ears (Capsules)
+            const earGeo = new THREE.CapsuleGeometry(0.06, 0.5, 4, 8);
+            const earL = new THREE.Mesh(earGeo, mat);
+            earL.position.set(-0.12, 1.1, 0.5);
+            earL.rotation.x = -0.2; earL.rotation.z = 0.2;
+            group.add(earL);
+
+            const earR = new THREE.Mesh(earGeo, mat);
+            earR.position.set(0.12, 1.1, 0.5);
+            earR.rotation.x = -0.2; earR.rotation.z = -0.2;
+            group.add(earR);
+
+            // Tail
+            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12), mat);
+            tail.position.set(0, 0.4, -0.75);
+            group.add(tail);
+            
+            // Legs (small boxes)
+            const legGeo = new THREE.BoxGeometry(0.15, 0.2, 0.15);
+            const legFL = new THREE.Mesh(legGeo, mat); legFL.position.set(-0.25, 0.1, 0.4); group.add(legFL);
+            const legFR = new THREE.Mesh(legGeo, mat); legFR.position.set(0.25, 0.1, 0.4); group.add(legFR);
+            const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.3, 0.1, -0.5); group.add(legBL);
+            const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.3, 0.1, -0.5); group.add(legBR);
+
+            group.scale.set(scale, scale, scale);
+            return group;
+        }
+
         const cowGeo = new THREE.BoxGeometry(1.4, 1.1, 2.0);
         const cowMat = new THREE.MeshStandardMaterial({ color: 0x885533 });
         const cowHead = new THREE.BoxGeometry(0.7, 0.7, 0.9);
-        
-        const rabbitGeo = new THREE.BoxGeometry(0.4, 0.4, 0.5);
-        const rabbitMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
-
-        // TITAN BUNNY GEOMETRY
-        const titanBodyGeo = new THREE.BoxGeometry(4, 5, 6);
-        const titanHeadGeo = new THREE.BoxGeometry(2.5, 2.5, 3);
-        const titanEarGeo = new THREE.BoxGeometry(0.8, 6, 0.8);
-        const titanMat = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.9 });
 
         function spawnAnimals() {
-            // Bio-Cows
-            for(let i=0; i<40; i++) {
+            // Bio-Cows (Keep them simple for variety)
+            for(let i=0; i<30; i++) {
                 const group = new THREE.Group();
                 const body = new THREE.Mesh(cowGeo, cowMat);
                 body.position.y = 1.0; body.castShadow = true; group.add(body);
@@ -443,38 +480,57 @@
                 scene.add(group);
                 animals.push({ mesh: group, type: 'cow', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
-            // Space Rabbits
-            for(let i=0; i<50; i++) {
-                const group = new THREE.Group();
-                const body = new THREE.Mesh(rabbitGeo, rabbitMat);
-                body.position.y = 0.2; body.castShadow = true; group.add(body);
-                const ears = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.1), rabbitMat);
-                ears.position.set(0, 0.5, -0.1); group.add(ears);
 
-                const angle = Math.random() * Math.PI * 2;
-                const r = 200 + Math.random() * 2000;
-                group.position.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
-                scene.add(group);
-                animals.push({ mesh: group, type: 'rabbit', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
+            // Space Rabbits (Detailed)
+            for(let i=0; i<80; i++) {
+                // Random white/grey colors
+                const c = Math.random() > 0.5 ? 0xeeeeee : 0xaaaaaa;
+                const mesh = createDetailedBunny(1.0, c);
+                
+                // Spawn logic: Try to find flat ground
+                let spawned = false;
+                let attempts = 0;
+                while(!spawned && attempts < 10) {
+                    attempts++;
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 200 + Math.random() * 2500;
+                    const tx = Math.cos(angle)*r; 
+                    const tz = Math.sin(angle)*r;
+                    const norm = getSurfaceNormal(tx, tz);
+                    
+                    // Only spawn if flat (normal.y close to 1)
+                    if(norm.y > 0.9) {
+                        mesh.position.set(tx, 0, tz);
+                        spawned = true;
+                    }
+                }
+                if(!spawned) mesh.position.set(0,0,0); // Fallback
+
+                scene.add(mesh);
+                animals.push({ mesh: mesh, type: 'rabbit', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
 
-            // TITAN BUNNIES
-            for(let i=0; i<15; i++) {
-                const group = new THREE.Group();
-                const body = new THREE.Mesh(titanBodyGeo, titanMat);
-                body.position.y = 3.5; body.castShadow = true; group.add(body);
-                const head = new THREE.Mesh(titanHeadGeo, titanMat);
-                head.position.set(0, 6.5, -2.5); group.add(head);
-                const earL = new THREE.Mesh(titanEarGeo, titanMat);
-                earL.position.set(-0.8, 9.0, -2.5); group.add(earL);
-                const earR = new THREE.Mesh(titanEarGeo, titanMat);
-                earR.position.set(0.8, 9.0, -2.5); group.add(earR);
+            // TITAN BUNNIES (Massive, detailed)
+            for(let i=0; i<12; i++) {
+                const mesh = createDetailedBunny(8.0, 0xaaddff); // Blue-ish tint, 8x size
+                
+                let spawned = false;
+                let attempts = 0;
+                while(!spawned && attempts < 20) {
+                    attempts++;
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 500 + Math.random() * 4000;
+                    const tx = Math.cos(angle)*r; 
+                    const tz = Math.sin(angle)*r;
+                    const norm = getSurfaceNormal(tx, tz);
+                    if(norm.y > 0.85) { // Titans can handle slight slopes
+                        mesh.position.set(tx, 0, tz);
+                        spawned = true;
+                    }
+                }
 
-                const angle = Math.random() * Math.PI * 2;
-                const r = 400 + Math.random() * 2000;
-                group.position.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
-                scene.add(group);
-                animals.push({ mesh: group, type: 'titan', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
+                scene.add(mesh);
+                animals.push({ mesh: mesh, type: 'titan', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
         }
 
@@ -496,70 +552,41 @@
         const mushCapMesh = new THREE.InstancedMesh(mushCapGeo, mushMat, 8000);
 
         // --- CROSSED GRASS (X-SHAPE) ---
-        // Creating a BufferGeometry with 2 intersecting planes to simulate volume
         const grassGeo = new THREE.BufferGeometry();
-        // Plane 1 vertices (Rectangle 1.5w x 3h)
-        const v1 = [
-            -0.75, 0, 0,   0.75, 0, 0,   -0.75, 3, 0,
-             0.75, 0, 0,   0.75, 3, 0,   -0.75, 3, 0
-        ];
-        // Plane 2 vertices (Rotated 90 deg)
-        const v2 = [
-            0, 0, -0.75,   0, 0, 0.75,   0, 3, -0.75,
-            0, 0, 0.75,    0, 3, 0.75,   0, 3, -0.75
-        ];
-        // Combine them
+        const v1 = [ -0.75, 0, 0, 0.75, 0, 0, -0.75, 3, 0, 0.75, 0, 0, 0.75, 3, 0, -0.75, 3, 0 ];
+        const v2 = [ 0, 0, -0.75, 0, 0, 0.75, 0, 3, -0.75, 0, 0, 0.75, 0, 3, 0.75, 0, 3, -0.75 ];
         const verts = new Float32Array([...v1, ...v2]);
         grassGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-        
-        // UVs to make shader gradient work
-        const uvs1 = [
-            0,0, 1,0, 0,1,  1,0, 1,1, 0,1
-        ];
+        const uvs1 = [ 0,0, 1,0, 0,1,  1,0, 1,1, 0,1 ];
         const uvs = new Float32Array([...uvs1, ...uvs1]);
         grassGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
         const grassMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 },
-                color: { value: new THREE.Color(0x44aa44) }
-            },
+            uniforms: { time: { value: 0 }, color: { value: new THREE.Color(0x44aa44) } },
             vertexShader: `
-                varying vec2 vUv;
-                varying float vHeight;
-                uniform float time;
-                
+                varying vec2 vUv; varying float vHeight; uniform float time;
                 void main() {
-                    vUv = uv;
-                    vHeight = position.y;
-                    vec3 pos = position;
+                    vUv = uv; vHeight = position.y; vec3 pos = position;
                     vec4 worldPosition = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-                    
-                    // Sway logic
                     if(pos.y > 0.5) {
                         float wave = sin(time * 1.5 + worldPosition.x * 0.05 + worldPosition.z * 0.05) * 0.5;
                         wave += sin(time * 3.0 + worldPosition.x * 0.1) * 0.1;
-                        pos.x += wave * (pos.y * 0.3);
-                        pos.z += wave * 0.5 * (pos.y * 0.3);
+                        pos.x += wave * (pos.y * 0.3); pos.z += wave * 0.5 * (pos.y * 0.3);
                     }
-                    
                     gl_Position = projectionMatrix * viewMatrix * (instanceMatrix * vec4(pos, 1.0));
                 }
             `,
             fragmentShader: `
-                varying vec2 vUv;
-                varying float vHeight;
-                uniform vec3 color;
+                varying vec2 vUv; varying float vHeight; uniform vec3 color;
                 void main() {
                     vec3 gradientColor = mix(color * 0.2, color * 1.3, vHeight / 3.0);
-                    if(gradientColor.g < 0.1) discard; // Alpha test if needed
+                    if(gradientColor.g < 0.1) discard;
                     gl_FragColor = vec4(gradientColor, 1.0);
                 }
             `,
             side: THREE.DoubleSide
         });
 
-        // 350,000 instances
         const grassCount = 350000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
 
@@ -598,38 +625,32 @@
             let attempts = 0;
             const loopMax = 150000; 
 
-            // Trees & Mushrooms - SLOPE CHECK ADDED
+            // Trees & Mushrooms
             while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
                 attempts++;
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 100 + Math.random() * 14500; 
                 const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
                 const y = getMeshHeight(tx, tz);
-                
-                // Get Slope
                 const normal = getSurfaceNormal(tx, tz);
-                // Only plant trees/shrooms on relatively flat ground (normal.y close to 1)
                 const isFlat = normal.y > 0.75;
-
                 const biome = getBiomeData(tx, tz, y);
                 
                 if(y > -10 && isPositionFree(tx, tz, 10) && isFlat) {
                     if (tIdx < treeCount && (biome.type === 'FOREST' || (biome.type === 'GRASSLAND' && Math.random() > 0.7))) {
                         dummy.position.set(tx, y, tz);
                         const s = 0.8 + Math.random() * 1.5; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*3, 0); // Rotate Y axis only
+                        dummy.rotation.set(0, Math.random()*3, 0);
                         dummy.updateMatrix();
                         foliageMesh.setMatrixAt(tIdx, dummy.matrix); trunkMesh.setMatrixAt(tIdx, dummy.matrix);
-                        addToGrid(tx, tz, 2.0); 
-                        tIdx++;
+                        addToGrid(tx, tz, 2.0); tIdx++;
                     } else if (mIdx < 8000 && biome.type === 'FOREST' && Math.random() > 0.5) {
                         dummy.position.set(tx, y, tz);
                         const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*3, 0);
                         dummy.updateMatrix();
                         mushStemMesh.setMatrixAt(mIdx, dummy.matrix); mushCapMesh.setMatrixAt(mIdx, dummy.matrix);
-                        addToGrid(tx, tz, 1.5);
-                        mIdx++;
+                        addToGrid(tx, tz, 1.5); mIdx++;
                     }
                 }
             }
@@ -640,8 +661,6 @@
 
             // Bushes & Grass & Rocks
             let bIdx = 0;
-            
-            // INCREASED LOOP FOR MASSIVE GRASS
             for(let i=0; i<400000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
@@ -650,31 +669,23 @@
                 const biome = getBiomeData(bx, bz, y);
 
                 if(y > -10) {
-                    // Bush placement
                     if(bIdx < bushCount && biome.type !== 'SNOW') {
                          const normal = getSurfaceNormal(bx, bz);
-                         if (normal.y > 0.6) { // Bushes prefer flat too
+                         if (normal.y > 0.6) { 
                             dummy.position.set(bx, y, bz);
                             const s = 1.0 + Math.random() * 2.0; dummy.scale.set(s,s,s);
                             dummy.updateMatrix();
                             bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
                          }
                     }
-
-                    // Grass placement
                     if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST' || (biome.type === 'HIGHLANDS' && Math.random() > 0.4))) {
                         dummy.position.set(bx, y, bz);
-                        // Make grass bushy
                         const s = 1.2 + Math.random() * 0.8; 
                         dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*Math.PI, 0); 
                         dummy.updateMatrix();
-                        
-                        grassMesh.setMatrixAt(gIdx, dummy.matrix);
-                        gIdx++;
+                        grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
                     }
-
-                    // Rocks (can be on slopes)
                     if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
                         dummy.position.set(bx, y, bz);
                         const s = 1.0 + Math.random() * 4.0; dummy.scale.set(s,s,s);
@@ -684,11 +695,8 @@
                     }
                 }
             }
-            bushMesh.count = bIdx; rockMesh.count = rIdx;
-            grassMesh.count = gIdx;
-            
-            scene.add(bushMesh); scene.add(rockMesh);
-            scene.add(grassMesh);
+            bushMesh.count = bIdx; rockMesh.count = rIdx; grassMesh.count = gIdx;
+            scene.add(bushMesh); scene.add(rockMesh); scene.add(grassMesh);
         }
         
         function checkTreeCollision(px, pz) {
@@ -711,7 +719,7 @@
         let hasPointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
         let isLocked = false; let isMouseDown = false;
         let btnUp = false; let btnDown = false;
-        let timeOfDay = 0.5; // Start at NOON
+        let timeOfDay = 0.5;
 
         window.addEventListener('keydown', e => {
             if(e.code === 'KeyW') keys.w = 1; if(e.code === 'KeyS') keys.s = 1;
@@ -751,7 +759,6 @@
             }
         });
 
-        // Ensure startGame is accessible globally
         window.startGame = function() {
             if(hasPointerLock) { try { document.body.requestPointerLock(); } catch(e) {} }
             document.getElementById('loading').style.display = 'block';
@@ -777,13 +784,10 @@
             const isDay = timeOfDay > 0.25 && timeOfDay < 0.75;
             const isSunset = (timeOfDay > 0.2 && timeOfDay < 0.25) || (timeOfDay > 0.75 && timeOfDay < 0.8);
             
-            let skyHex = 0x000000;
-            let fogHex = 0x000000;
-            let sunInt = 0;
-            let hemiInt = 0;
+            let skyHex = 0x000000; let fogHex = 0x000000;
+            let sunInt = 0; let hemiInt = 0;
 
             if(isDay) {
-                // BRIGHTER DAY SETTINGS
                 skyHex = 0x88ccff; fogHex = 0xbbeeff; sunInt = 2.2; hemiInt = 0.8;
             } else if (isSunset) {
                 skyHex = 0xff9944; fogHex = 0xffaa66; sunInt = 0.8; hemiInt = 0.3;
@@ -795,8 +799,6 @@
             fog.color.lerp(new THREE.Color(fogHex), 0.01);
             sunLight.intensity = THREE.MathUtils.lerp(sunLight.intensity, sunInt, 0.01);
             hemiLight.intensity = THREE.MathUtils.lerp(hemiLight.intensity, hemiInt, 0.01);
-
-            // Stars fade
             const starTarget = (sunInt > 0.2) ? 0 : 0.8;
             starMat.opacity = THREE.MathUtils.lerp(starMat.opacity, starTarget, 0.01);
 
@@ -809,26 +811,59 @@
             for(let i=0; i<animals.length; i++) {
                 const anim = animals[i];
                 anim.timer++;
+
+                // 1. Get current status of terrain below animal
+                const currentPos = anim.mesh.position;
+                const normal = getSurfaceNormal(currentPos.x, currentPos.z);
+                const isSteep = normal.y < 0.85; // Slope cutoff
+
+                // 2. Logic for moving
                 if(anim.timer > 100 + Math.random()*200) { 
-                    anim.dir.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    // Pick a random direction
+                    const randDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    
+                    // Look ahead logic: Will this new direction lead to a steep slope?
+                    const lookAheadDist = 8.0;
+                    const futureNormal = getSurfaceNormal(currentPos.x + randDir.x * lookAheadDist, currentPos.z + randDir.z * lookAheadDist);
+                    
+                    // If the future is steep, reject and try to go downhill/away
+                    if (futureNormal.y < 0.85) {
+                         // Slope avoidance: try to go opposite to slope gradient
+                         anim.dir.x = futureNormal.x; 
+                         anim.dir.z = futureNormal.z;
+                         anim.dir.normalize();
+                    } else {
+                        anim.dir = randDir;
+                    }
                     anim.timer = 0;
                 }
+
+                // 3. Slope sliding (Physics-lite)
+                // If on a steep slope, force them to slide downhill regardless of where they want to go
+                if (isSteep) {
+                    anim.dir.x += normal.x * 0.1; // Push in direction of normal's XZ component (downhill)
+                    anim.dir.z += normal.z * 0.1;
+                    anim.dir.normalize();
+                }
+
                 const speed = (anim.type === 'rabbit') ? 0.08 : (anim.type === 'titan' ? 0.05 : 0.03);
                 anim.mesh.position.addScaledVector(anim.dir, speed); 
                 
-                // Rabbit/Titan hop
+                // Rabbit/Titan hop animation
                 let yOffset = 0;
                 if(anim.type === 'rabbit') {
                     yOffset = Math.abs(Math.sin(Date.now() * 0.01)) * 0.5;
                 } else if (anim.type === 'titan') {
-                    // Huge, heavy hops
                     const hop = Math.sin(Date.now() * 0.002);
-                    if(hop > 0) yOffset = hop * 3.0; // High jump
+                    if(hop > 0) yOffset = hop * 3.0; 
                 }
 
                 const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
                 anim.mesh.position.y = h + yOffset + ((anim.type==='rabbit')?0.2:(anim.type==='titan'?3.5:1.0));
-                anim.mesh.lookAt(anim.mesh.position.x + anim.dir.x, h + yOffset, anim.mesh.position.z + anim.dir.z);
+                
+                // Make them look where they are going
+                const lookTarget = new THREE.Vector3(anim.mesh.position.x + anim.dir.x, h + yOffset, anim.mesh.position.z + anim.dir.z);
+                anim.mesh.lookAt(lookTarget);
             }
         }
 
@@ -838,7 +873,6 @@
             updateDayNight();
             updateAnimals();
 
-            // Update Grass Wind
             grassMaterial.uniforms.time.value = performance.now() * 0.001;
 
             if(keys.up || btnUp) player.pitch += 0.03;
@@ -914,17 +948,14 @@
             const newX = player.x + dx; 
             const newZ = player.z + dz;
 
-            // --- COLLISION CHECKS ---
             if (!checkTreeCollision(newX, newZ)) {
                 player.x = newX;
                 player.z = newZ;
             } else {
-                // Wall sliding: try moving just X or just Z
                 if (!checkTreeCollision(player.x, newZ)) player.z = newZ;
                 else if (!checkTreeCollision(newX, player.z)) player.x = newX;
             }
 
-            // --- GROUND CLAMPING ---
             const terrainHeight = getMeshHeight(player.x, player.z);
             if (player.y < terrainHeight) {
                 player.y = terrainHeight;
@@ -932,25 +963,20 @@
                 player.isGrounded = true;
             }
 
-            // --- ANIMATION & CAMERA ---
             if (isMoving && player.isGrounded) {
                 animationTime += (isSprinting ? 0.3 : 0.15);
             }
             
-            // Head Bob
             const bobOffset = Math.sin(animationTime) * 0.08;
             const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
             
-            // Update Camera
             camera.position.set(player.x + swayOffset, player.y + 1.7 + bobOffset, player.z);
             camera.rotation.x = player.pitch;
             camera.rotation.y = player.angle;
 
-            // Update Player Mesh (Shadow Caster)
             playerMesh.position.set(player.x, player.y, player.z);
-            playerMesh.rotation.y = player.angle + Math.PI; // Face forward
+            playerMesh.rotation.y = player.angle + Math.PI; 
             
-            // Animate Limbs
             if (charParts.leftLeg) {
                 const walkCycle = Math.sin(animationTime);
                 charParts.leftLeg.rotation.x = walkCycle * 0.5;
@@ -959,7 +985,6 @@
                 charParts.rightArm.rotation.x = walkCycle * 0.5;
             }
 
-            // --- RENDER ---
             composer.render();
         }
     </script>
