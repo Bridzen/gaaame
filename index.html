@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Grand Bosnia: Overgrown (Rabbit Update)</title>
+    <title>Grand Bosnia: Free Solo</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -29,6 +29,12 @@
         #stamina-bar {
             width: 100%; height: 100%; background: #00ddee;
             box-shadow: 0 0 10px #00ddee; transition: width 0.1s;
+        }
+
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(255, 0, 0, 0.6) 100%);
+            display: none; pointer-events: none; z-index: 10;
         }
 
         #controls {
@@ -103,11 +109,12 @@
 
     <div id="error-box"></div>
     <div id="crosshair"></div>
+    <div id="damage-overlay"></div>
     <div id="time-disp">12:00</div>
 
     <div id="start-screen">
         <h1 style="font-size:60px; margin-bottom:0px; letter-spacing: 5px; color: #fff;">PLANET BOSNIA</h1>
-        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">The Rabbit Migration</p>
+        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Alpine Recovery Update</p>
         <div class="btn" onclick="startGame()">INITIATE LANDING</div>
         <div id="loading">Generating Ecosystem...</div>
     </div>
@@ -127,7 +134,7 @@
         </div>
         
         <div style="margin-top:20px">
-            <span class="stat-label">OXYGEN / STAMINA</span>
+            <span class="stat-label">SUIT INTEGRITY / STAMINA</span>
             <div id="stamina-container">
                 <div id="stamina-bar"></div>
             </div>
@@ -415,50 +422,24 @@
         // --- ANIMALS ---
         const animals = [];
         
-        // NEW DETAILED BUNNY BUILDER
-        function createDetailedBunny(scale, colorHex) {
+        function createTitanBunny(scale) {
             const group = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.8, flatShading: true });
-            
-            // Body (Dodecahedron looks good low-poly/organic)
-            const body = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 1), mat);
-            body.scale.set(1.2, 0.9, 1.5);
-            body.position.y = 0.4;
-            body.castShadow = true;
-            group.add(body);
-
-            // Head
-            const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 1), mat);
-            head.position.set(0, 0.75, 0.6);
-            head.scale.set(1, 0.9, 1.1);
-            group.add(head);
-
-            // Ears (Capsules)
-            const earGeo = new THREE.CapsuleGeometry(0.06, 0.5, 4, 8);
-            const earL = new THREE.Mesh(earGeo, mat);
-            earL.position.set(-0.12, 1.1, 0.5);
-            earL.rotation.x = -0.2; earL.rotation.z = 0.2;
-            group.add(earL);
-
-            const earR = new THREE.Mesh(earGeo, mat);
-            earR.position.set(0.12, 1.1, 0.5);
-            earR.rotation.x = -0.2; earR.rotation.z = -0.2;
-            group.add(earR);
-
-            // Tail
-            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12), mat);
-            tail.position.set(0, 0.4, -0.75);
-            group.add(tail);
-            
-            // Legs (small boxes)
-            const legGeo = new THREE.BoxGeometry(0.15, 0.2, 0.15);
-            const legFL = new THREE.Mesh(legGeo, mat); legFL.position.set(-0.25, 0.1, 0.4); group.add(legFL);
-            const legFR = new THREE.Mesh(legGeo, mat); legFR.position.set(0.25, 0.1, 0.4); group.add(legFR);
-            const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.3, 0.1, -0.5); group.add(legBL);
-            const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.3, 0.1, -0.5); group.add(legBR);
-
+            const mat = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.8, flatShading: true });
+            const body = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0, 1), mat);
+            body.scale.set(1.1, 0.9, 1.3); body.position.y = 1.2; body.castShadow = true; group.add(body);
+            const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 1), mat);
+            head.position.set(0, 1.9, 0.8); group.add(head);
+            const earGeo = new THREE.CapsuleGeometry(0.15, 1.2, 4, 8);
+            const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.3, 2.7, 0.6); earL.rotation.z = 0.2; earL.rotation.x = -0.2; group.add(earL);
+            const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.3, 2.7, 0.6); earR.rotation.z = -0.2; earR.rotation.x = -0.2; group.add(earR);
+            const legGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.8);
+            const legFL = new THREE.Mesh(legGeo, mat); legFL.position.set(-0.5, 0.4, 0.6); group.add(legFL);
+            const legFR = new THREE.Mesh(legGeo, mat); legFR.position.set(0.5, 0.4, 0.6); group.add(legFR);
+            const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.6, 0.4, -0.6); group.add(legBL);
+            const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.6, 0.4, -0.6); group.add(legBR);
+            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.3), mat); tail.position.set(0, 1.0, -1.1); group.add(tail);
             group.scale.set(scale, scale, scale);
-            return group;
+            return { mesh: group, mat: mat, parts: { body, head, earL, earR, legFL, legFR, legBL, legBR } };
         }
 
         const cowGeo = new THREE.BoxGeometry(1.4, 1.1, 2.0);
@@ -466,71 +447,47 @@
         const cowHead = new THREE.BoxGeometry(0.7, 0.7, 0.9);
 
         function spawnAnimals() {
-            // Bio-Cows (Keep them simple for variety)
+            // Bio-Cows
             for(let i=0; i<30; i++) {
                 const group = new THREE.Group();
-                const body = new THREE.Mesh(cowGeo, cowMat);
-                body.position.y = 1.0; body.castShadow = true; group.add(body);
-                const head = new THREE.Mesh(cowHead, cowMat);
-                head.position.set(0, 1.8, -1.3); group.add(head);
-                
-                const angle = Math.random() * Math.PI * 2;
-                const r = 200 + Math.random() * 2000;
-                group.position.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
+                const body = new THREE.Mesh(cowGeo, cowMat); body.position.y = 1.0; body.castShadow = true; group.add(body);
+                const head = new THREE.Mesh(cowHead, cowMat); head.position.set(0, 1.8, -1.3); group.add(head);
+                let spawned = false;
+                while(!spawned) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 500 + Math.random() * 5000;
+                    const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
+                    const h = getMeshHeight(tx, tz);
+                    if(h > 10) { group.position.set(tx, 0, tz); spawned = true; }
+                }
                 scene.add(group);
                 animals.push({ mesh: group, type: 'cow', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
 
-            // Space Rabbits (Detailed)
-            for(let i=0; i<80; i++) {
-                // Random white/grey colors
-                const c = Math.random() > 0.5 ? 0xeeeeee : 0xaaaaaa;
-                const mesh = createDetailedBunny(1.0, c);
-                
-                // Spawn logic: Try to find flat ground
+            // HOSTILE FOREST TITANS
+            for(let i=0; i<30; i++) {
+                const titanObj = createTitanBunny(3.5);
+                const mesh = titanObj.mesh;
                 let spawned = false;
                 let attempts = 0;
-                while(!spawned && attempts < 10) {
+                while(!spawned && attempts < 200) {
                     attempts++;
                     const angle = Math.random() * Math.PI * 2;
-                    const r = 200 + Math.random() * 2500;
-                    const tx = Math.cos(angle)*r; 
-                    const tz = Math.sin(angle)*r;
+                    const r = 2000 + Math.random() * 8000;
+                    const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
+                    const h = getMeshHeight(tx, tz);
+                    const biome = getBiomeData(tx, tz, h);
                     const norm = getSurfaceNormal(tx, tz);
-                    
-                    // Only spawn if flat (normal.y close to 1)
-                    if(norm.y > 0.9) {
-                        mesh.position.set(tx, 0, tz);
-                        spawned = true;
-                    }
+                    if(biome.type === 'FOREST' && norm.y > 0.8 && r > 1500) { mesh.position.set(tx, 0, tz); spawned = true; }
                 }
-                if(!spawned) mesh.position.set(0,0,0); // Fallback
-
-                scene.add(mesh);
-                animals.push({ mesh: mesh, type: 'rabbit', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
-            }
-
-            // TITAN BUNNIES (Massive, detailed)
-            for(let i=0; i<12; i++) {
-                const mesh = createDetailedBunny(8.0, 0xaaddff); // Blue-ish tint, 8x size
-                
-                let spawned = false;
-                let attempts = 0;
-                while(!spawned && attempts < 20) {
-                    attempts++;
-                    const angle = Math.random() * Math.PI * 2;
-                    const r = 500 + Math.random() * 4000;
-                    const tx = Math.cos(angle)*r; 
-                    const tz = Math.sin(angle)*r;
-                    const norm = getSurfaceNormal(tx, tz);
-                    if(norm.y > 0.85) { // Titans can handle slight slopes
-                        mesh.position.set(tx, 0, tz);
-                        spawned = true;
-                    }
+                if(spawned) {
+                    scene.add(mesh);
+                    animals.push({ 
+                        mesh: mesh, type: 'titan', mat: titanObj.mat, parts: titanObj.parts,
+                        dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
+                        timer: 0, state: 'WANDER', animOffset: Math.random() * 100
+                    });
                 }
-
-                scene.add(mesh);
-                animals.push({ mesh: mesh, type: 'titan', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
         }
 
@@ -543,7 +500,6 @@
         const foliageMesh = new THREE.InstancedMesh(foliageGeo, foliageMat, treeCount);
         const trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
         
-        // Huge Alien Mushrooms
         const mushStemGeo = new THREE.CylinderGeometry(1, 1.5, 10, 6); mushStemGeo.translate(0, 5, 0);
         const mushCapGeo = new THREE.ConeGeometry(5, 4, 8); mushCapGeo.translate(0, 12, 0);
         const mushMat = new THREE.MeshStandardMaterial({ color: 0xaa3333, roughness: 0.8 });
@@ -551,7 +507,6 @@
         const mushStemMesh = new THREE.InstancedMesh(mushStemGeo, mushStemMat, 8000);
         const mushCapMesh = new THREE.InstancedMesh(mushCapGeo, mushMat, 8000);
 
-        // --- CROSSED GRASS (X-SHAPE) ---
         const grassGeo = new THREE.BufferGeometry();
         const v1 = [ -0.75, 0, 0, 0.75, 0, 0, -0.75, 3, 0, 0.75, 0, 0, 0.75, 3, 0, -0.75, 3, 0 ];
         const v2 = [ 0, 0, -0.75, 0, 0, 0.75, 0, 3, -0.75, 0, 0, 0.75, 0, 3, 0.75, 0, 3, -0.75 ];
@@ -576,14 +531,7 @@
                     gl_Position = projectionMatrix * viewMatrix * (instanceMatrix * vec4(pos, 1.0));
                 }
             `,
-            fragmentShader: `
-                varying vec2 vUv; varying float vHeight; uniform vec3 color;
-                void main() {
-                    vec3 gradientColor = mix(color * 0.2, color * 1.3, vHeight / 3.0);
-                    if(gradientColor.g < 0.1) discard;
-                    gl_FragColor = vec4(gradientColor, 1.0);
-                }
-            `,
+            fragmentShader: `varying vec2 vUv; varying float vHeight; uniform vec3 color; void main() { vec3 gradientColor = mix(color * 0.2, color * 1.3, vHeight / 3.0); if(gradientColor.g < 0.1) discard; gl_FragColor = vec4(gradientColor, 1.0); }`,
             side: THREE.DoubleSide
         });
 
@@ -625,7 +573,6 @@
             let attempts = 0;
             const loopMax = 150000; 
 
-            // Trees & Mushrooms
             while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
                 attempts++;
                 const angle = Math.random() * Math.PI * 2; 
@@ -659,7 +606,6 @@
             scene.add(foliageMesh); scene.add(trunkMesh);
             scene.add(mushStemMesh); scene.add(mushCapMesh);
 
-            // Bushes & Grass & Rocks
             let bIdx = 0;
             for(let i=0; i<400000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
@@ -680,10 +626,8 @@
                     }
                     if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST' || (biome.type === 'HIGHLANDS' && Math.random() > 0.4))) {
                         dummy.position.set(bx, y, bz);
-                        const s = 1.2 + Math.random() * 0.8; 
-                        dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*Math.PI, 0); 
-                        dummy.updateMatrix();
+                        const s = 1.2 + Math.random() * 0.8; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
                         grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
                     }
                     if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
@@ -720,6 +664,7 @@
         let isLocked = false; let isMouseDown = false;
         let btnUp = false; let btnDown = false;
         let timeOfDay = 0.5;
+        let smoothCamY = 0; // NEW: Smooth Camera Y
 
         window.addEventListener('keydown', e => {
             if(e.code === 'KeyW') keys.w = 1; if(e.code === 'KeyS') keys.s = 1;
@@ -768,101 +713,86 @@
                 spawnAnimals();
                 document.getElementById('start-screen').style.display = 'none';
                 player.x = 0; player.z = 0; player.y = getMeshHeight(0,0);
+                smoothCamY = player.y + 1.7; // Init
                 gameActive = true; animate();
             }, 100);
         };
 
         function updateDayNight() {
-            timeOfDay += 0.000007; 
-            if(timeOfDay > 1) timeOfDay = 0;
-            
+            timeOfDay += 0.000007; if(timeOfDay > 1) timeOfDay = 0;
             const phi = (timeOfDay + 0.25) * Math.PI * 2; 
             const r = 10000;
             sunLight.position.set(r * Math.cos(phi), r * Math.sin(phi), 0);
             sunSphere.position.copy(sunLight.position);
-
             const isDay = timeOfDay > 0.25 && timeOfDay < 0.75;
             const isSunset = (timeOfDay > 0.2 && timeOfDay < 0.25) || (timeOfDay > 0.75 && timeOfDay < 0.8);
-            
-            let skyHex = 0x000000; let fogHex = 0x000000;
-            let sunInt = 0; let hemiInt = 0;
-
-            if(isDay) {
-                skyHex = 0x88ccff; fogHex = 0xbbeeff; sunInt = 2.2; hemiInt = 0.8;
-            } else if (isSunset) {
-                skyHex = 0xff9944; fogHex = 0xffaa66; sunInt = 0.8; hemiInt = 0.3;
-            } else {
-                skyHex = 0x000510; fogHex = 0x000510; sunInt = 0.0; hemiInt = 0.05;
-            }
-
+            let skyHex = 0x000000; let fogHex = 0x000000; let sunInt = 0; let hemiInt = 0;
+            if(isDay) { skyHex = 0x88ccff; fogHex = 0xbbeeff; sunInt = 2.2; hemiInt = 0.8; }
+            else if (isSunset) { skyHex = 0xff9944; fogHex = 0xffaa66; sunInt = 0.8; hemiInt = 0.3; }
+            else { skyHex = 0x000510; fogHex = 0x000510; sunInt = 0.0; hemiInt = 0.05; }
             scene.background.lerp(new THREE.Color(skyHex), 0.01);
             fog.color.lerp(new THREE.Color(fogHex), 0.01);
             sunLight.intensity = THREE.MathUtils.lerp(sunLight.intensity, sunInt, 0.01);
             hemiLight.intensity = THREE.MathUtils.lerp(hemiLight.intensity, hemiInt, 0.01);
-            const starTarget = (sunInt > 0.2) ? 0 : 0.8;
-            starMat.opacity = THREE.MathUtils.lerp(starMat.opacity, starTarget, 0.01);
-
-            const hrs = Math.floor(timeOfDay * 24);
-            const mins = Math.floor((timeOfDay * 24 * 60) % 60);
+            starMat.opacity = THREE.MathUtils.lerp(starMat.opacity, (sunInt > 0.2) ? 0 : 0.8, 0.01);
+            const hrs = Math.floor(timeOfDay * 24); const mins = Math.floor((timeOfDay * 24 * 60) % 60);
             document.getElementById('time-disp').innerText = `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
         }
 
         function updateAnimals() {
+            const time = Date.now() * 0.001;
+            const dmgOverlay = document.getElementById('damage-overlay');
+            dmgOverlay.style.display = 'none';
+
             for(let i=0; i<animals.length; i++) {
                 const anim = animals[i];
                 anim.timer++;
-
-                // 1. Get current status of terrain below animal
                 const currentPos = anim.mesh.position;
-                const normal = getSurfaceNormal(currentPos.x, currentPos.z);
-                const isSteep = normal.y < 0.85; // Slope cutoff
+                let targetDir = null;
+                
+                if(anim.type === 'titan') {
+                    const distToPlayer = Math.sqrt((player.x - currentPos.x)**2 + (player.z - currentPos.z)**2);
+                    if (distToPlayer < 80) { anim.state = 'ATTACK'; anim.mat.color.setHex(0xff5555); } 
+                    else if (distToPlayer > 150) { anim.state = 'WANDER'; anim.mat.color.setHex(0xaaddff); }
 
-                // 2. Logic for moving
-                if(anim.timer > 100 + Math.random()*200) { 
-                    // Pick a random direction
-                    const randDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
-                    
-                    // Look ahead logic: Will this new direction lead to a steep slope?
-                    const lookAheadDist = 8.0;
-                    const futureNormal = getSurfaceNormal(currentPos.x + randDir.x * lookAheadDist, currentPos.z + randDir.z * lookAheadDist);
-                    
-                    // If the future is steep, reject and try to go downhill/away
-                    if (futureNormal.y < 0.85) {
-                         // Slope avoidance: try to go opposite to slope gradient
-                         anim.dir.x = futureNormal.x; 
-                         anim.dir.z = futureNormal.z;
-                         anim.dir.normalize();
-                    } else {
-                        anim.dir = randDir;
+                    if (anim.state === 'ATTACK') {
+                        targetDir = new THREE.Vector3(player.x - currentPos.x, 0, player.z - currentPos.z).normalize();
+                        anim.dir.lerp(targetDir, 0.1);
+                        if (distToPlayer < 4) {
+                            dmgOverlay.style.display = 'block';
+                            player.stamina -= 1; 
+                            player.x += targetDir.x * 2.0; player.z += targetDir.z * 2.0;
+                        }
                     }
+                }
+
+                if(anim.state !== 'ATTACK' && anim.timer > 100 + Math.random()*200) { 
+                    const randDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    const lookAheadDist = 10.0;
+                    const futureNormal = getSurfaceNormal(currentPos.x + randDir.x * lookAheadDist, currentPos.z + randDir.z * lookAheadDist);
+                    if (futureNormal.y < 0.85) { anim.dir.x = futureNormal.x; anim.dir.z = futureNormal.z; anim.dir.normalize(); } 
+                    else { anim.dir = randDir; }
                     anim.timer = 0;
                 }
 
-                // 3. Slope sliding (Physics-lite)
-                // If on a steep slope, force them to slide downhill regardless of where they want to go
-                if (isSteep) {
-                    anim.dir.x += normal.x * 0.1; // Push in direction of normal's XZ component (downhill)
-                    anim.dir.z += normal.z * 0.1;
-                    anim.dir.normalize();
-                }
+                const normal = getSurfaceNormal(currentPos.x, currentPos.z);
+                if (normal.y < 0.85) { anim.dir.x += normal.x * 0.1; anim.dir.z += normal.z * 0.1; anim.dir.normalize(); }
 
-                const speed = (anim.type === 'rabbit') ? 0.08 : (anim.type === 'titan' ? 0.05 : 0.03);
+                const speed = (anim.state === 'ATTACK') ? 0.18 : ((anim.type === 'cow') ? 0.03 : 0.06);
                 anim.mesh.position.addScaledVector(anim.dir, speed); 
-                
-                // Rabbit/Titan hop animation
-                let yOffset = 0;
-                if(anim.type === 'rabbit') {
-                    yOffset = Math.abs(Math.sin(Date.now() * 0.01)) * 0.5;
-                } else if (anim.type === 'titan') {
-                    const hop = Math.sin(Date.now() * 0.002);
-                    if(hop > 0) yOffset = hop * 3.0; 
-                }
 
                 const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
-                anim.mesh.position.y = h + yOffset + ((anim.type==='rabbit')?0.2:(anim.type==='titan'?3.5:1.0));
                 
-                // Make them look where they are going
-                const lookTarget = new THREE.Vector3(anim.mesh.position.x + anim.dir.x, h + yOffset, anim.mesh.position.z + anim.dir.z);
+                if(anim.type === 'titan') {
+                    const freq = (anim.state === 'ATTACK') ? 12.0 : 3.0; 
+                    const t = time * freq + anim.animOffset;
+                    anim.mesh.position.y = h + Math.abs(Math.sin(t)) * (anim.state === 'ATTACK' ? 0.5 : 1.5);
+                    if(anim.parts) {
+                        anim.parts.legFL.rotation.x = Math.sin(t) * 0.8; anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
+                        anim.parts.legBL.rotation.x = Math.cos(t) * 0.8; anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
+                    }
+                } else { anim.mesh.position.y = h + 1.0; }
+                const lookTarget = new THREE.Vector3(anim.mesh.position.x + anim.dir.x, anim.mesh.position.y, anim.mesh.position.z + anim.dir.z);
                 anim.mesh.lookAt(lookTarget);
             }
         }
@@ -881,80 +811,111 @@
             if(player.pitch > maxUp) player.pitch = maxUp; if(player.pitch < maxDown) player.pitch = maxDown;
 
             const normal = getSurfaceNormal(player.x, player.z);
-            const slopePercent = Math.tan(Math.acos(normal.y)) * 100;
-            let isTooSteep = (slopePercent > 70);
-            let isClimbing = (slopePercent > 35 && slopePercent <= 70);
-            player.isClimbing = isClimbing;
+            const slopeAngle = Math.acos(normal.y);
+            const slopePercent = Math.tan(slopeAngle) * 100;
 
-            const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.06; const GRAVITY = 0.02;
+            const IMPOSSIBLE_SLOPE = 150;
+            // Buffer to prevent flickering
+            const CLIMB_ENTER = 60;
+            const CLIMB_EXIT = 50;
+
+            let isImpossible = slopePercent > IMPOSSIBLE_SLOPE;
+            
+            // Hysteresis for smooth state switching
+            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible) {
+                player.isClimbing = true;
+            } else if (player.isClimbing && slopePercent < CLIMB_EXIT) {
+                player.isClimbing = false;
+            } else if (isImpossible) {
+                player.isClimbing = false;
+            }
+
+            const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; // Increased slightly for math fix
+            const GRAVITY = 0.02;
             const isMoving = (keys.w || keys.s || keys.a || keys.d);
             let isSprinting = false;
 
-            if (keys.shift && isMoving && player.stamina > 0 && !isClimbing) {
+            if (player.isClimbing) {
+                if (isMoving) {
+                    player.stamina -= 0.15; // Slow drain
+                } else {
+                    player.stamina += 0.15; // Regenerate when stopped
+                }
+                if (player.stamina <= 0) { player.isClimbing = false; isImpossible = true; }
+            } else if (keys.shift && isMoving && player.stamina > 0 && !isImpossible) {
                 isSprinting = true; player.stamina -= 0.3;
             } else {
                 if (isMoving) player.stamina += 0.1; else player.stamina += 0.3;
             }
             if(player.stamina < 0) player.stamina = 0; if(player.stamina > 100) player.stamina = 100;
+            
             document.getElementById('stamina-bar').style.width = player.stamina + "%";
+            if(player.stamina < 20) document.getElementById('stamina-bar').style.background = "#ff3333";
+            else document.getElementById('stamina-bar').style.background = "#00ddee";
 
             document.getElementById('alt-disp').innerText = Math.round(player.y) + "m";
             document.getElementById('slope-disp').innerText = Math.round(slopePercent) + "%";
-            document.getElementById('slope-disp').className = "stat-val " + (isTooSteep ? "danger" : (isClimbing ? "climb" : ""));
+            document.getElementById('slope-disp').className = "stat-val " + (isImpossible ? "danger" : (player.isClimbing ? "climb" : ""));
             const biomeInfo = getBiomeData(player.x, player.z, player.y);
             document.getElementById('biome-disp').innerText = biomeInfo.type;
 
             let dx = 0, dz = 0;
-            let maxSpeed = isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
+            let maxSpeed = player.isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
             
+            // Input Vector
             if (isLocked || isMouseDown) {
-                const fwdX = Math.sin(player.angle); 
-                const fwdZ = Math.cos(player.angle);
-                const rightX = Math.cos(player.angle); 
-                const rightZ = -Math.sin(player.angle);
-
-                if (keys.w) { dx -= fwdX; dz -= fwdZ; } 
-                if (keys.s) { dx += fwdX; dz += fwdZ; }
-                if (keys.a) { dx -= rightX; dz -= rightZ; } 
-                if (keys.d) { dx += rightX; dz += rightZ; } 
+                const fwdX = Math.sin(player.angle); const fwdZ = Math.cos(player.angle);
+                const rightX = Math.cos(player.angle); const rightZ = -Math.sin(player.angle);
+                if (keys.w) { dx -= fwdX; dz -= fwdZ; } if (keys.s) { dx += fwdX; dz += fwdZ; }
+                if (keys.a) { dx -= rightX; dz -= rightZ; } if (keys.d) { dx += rightX; dz += rightZ; } 
             } else {
-                if (keys.a) player.angle += 0.04; 
-                if (keys.d) player.angle -= 0.04;
-                const fwdX = Math.sin(player.angle); 
-                const fwdZ = Math.cos(player.angle);
-                if (keys.w) { dx -= fwdX; dz -= fwdZ; }
-                if (keys.s) { dx += fwdX; dz += fwdZ; }
+                if (keys.a) player.angle += 0.04; if (keys.d) player.angle -= 0.04;
+                const fwdX = Math.sin(player.angle); const fwdZ = Math.cos(player.angle);
+                if (keys.w) { dx -= fwdX; dz -= fwdZ; } if (keys.s) { dx += fwdX; dz += fwdZ; }
             }
 
+            // Normalize and Apply Speed
             if (dx !== 0 || dz !== 0) {
                 const len = Math.sqrt(dx*dx + dz*dz);
                 dx = (dx/len) * maxSpeed; dz = (dz/len) * maxSpeed;
+                
+                // --- CRITICAL FIX FOR CLIMBING ---
+                // Reduce horizontal movement speed on steep slopes so total movement (horizontal + vertical) isn't too fast.
+                if (player.isClimbing) {
+                    const slopeRatio = Math.tan(slopeAngle); // Rise over Run
+                    const surfaceFactor = Math.sqrt(1 + slopeRatio * slopeRatio);
+                    dx /= surfaceFactor;
+                    dz /= surfaceFactor;
+                }
             }
-            if (isTooSteep) { dx += normal.x * 0.2; dz += normal.z * 0.2; }
+            
+            if (isImpossible) {
+                dx += normal.x * 0.4; dz += normal.z * 0.4; // Slide
+            }
+
             player.speed = THREE.MathUtils.lerp(player.speed, Math.sqrt(dx*dx + dz*dz), 0.1);
             
             const groundY = getMeshHeight(player.x, player.z);
             player.isGrounded = (player.y <= groundY + 0.1);
-            if (!player.isGrounded) {
+            
+            if (!player.isGrounded && !player.isClimbing) {
                 player.velocityY -= GRAVITY;
             } else {
                 player.velocityY = Math.max(0, player.velocityY);
-                if (keys.space && !lastSpacePress && player.stamina > 10 && !isClimbing && !isTooSteep) {
+                if (keys.space && !lastSpacePress && player.stamina > 10 && !isImpossible && !player.isClimbing) {
                     player.velocityY = 0.4; player.isGrounded = false; player.stamina -= 10; lastSpacePress = true;
                 }
             }
+            
+            if (player.isClimbing) player.velocityY = 0;
+
             player.y += player.velocityY;
             
             const newX = player.x + dx; 
             const newZ = player.z + dz;
 
-            if (!checkTreeCollision(newX, newZ)) {
-                player.x = newX;
-                player.z = newZ;
-            } else {
-                if (!checkTreeCollision(player.x, newZ)) player.z = newZ;
-                else if (!checkTreeCollision(newX, player.z)) player.x = newX;
-            }
+            if (!checkTreeCollision(newX, newZ)) { player.x = newX; player.z = newZ; } 
+            else { if (!checkTreeCollision(player.x, newZ)) player.z = newZ; else if (!checkTreeCollision(newX, player.z)) player.x = newX; }
 
             const terrainHeight = getMeshHeight(player.x, player.z);
             if (player.y < terrainHeight) {
@@ -963,27 +924,38 @@
                 player.isGrounded = true;
             }
 
-            if (isMoving && player.isGrounded) {
-                animationTime += (isSprinting ? 0.3 : 0.15);
+            if (isMoving && player.isGrounded) { animationTime += (isSprinting ? 0.3 : 0.15); }
+            
+            // --- SMOOTH CAMERA Y ---
+            // Interpolate camera Y instead of snapping to prevent jitter on slopes
+            const targetCamY = player.y + 1.7;
+            smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); // 0.2 smoothing factor
+
+            if (player.isClimbing && isMoving) {
+                const climbCycle = animationTime * 0.5;
+                charParts.leftArm.rotation.x = -2.0 + Math.sin(climbCycle) * 0.6;
+                charParts.rightArm.rotation.x = -2.0 + Math.cos(climbCycle) * 0.6;
+                
+                const bobOffset = Math.sin(animationTime * 0.8) * 0.05;
+                camera.position.set(player.x, smoothCamY + bobOffset, player.z);
+
+            } else {
+                const bobOffset = Math.sin(animationTime) * 0.08;
+                const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
+                camera.position.set(player.x + swayOffset, smoothCamY + bobOffset, player.z);
+                
+                if (charParts.leftLeg) {
+                    const walkCycle = Math.sin(animationTime);
+                    charParts.leftLeg.rotation.x = walkCycle * 0.5; charParts.rightLeg.rotation.x = -walkCycle * 0.5;
+                    charParts.leftArm.rotation.x = -walkCycle * 0.5; charParts.rightArm.rotation.x = walkCycle * 0.5;
+                }
             }
             
-            const bobOffset = Math.sin(animationTime) * 0.08;
-            const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
-            
-            camera.position.set(player.x + swayOffset, player.y + 1.7 + bobOffset, player.z);
             camera.rotation.x = player.pitch;
             camera.rotation.y = player.angle;
 
             playerMesh.position.set(player.x, player.y, player.z);
             playerMesh.rotation.y = player.angle + Math.PI; 
-            
-            if (charParts.leftLeg) {
-                const walkCycle = Math.sin(animationTime);
-                charParts.leftLeg.rotation.x = walkCycle * 0.5;
-                charParts.rightLeg.rotation.x = -walkCycle * 0.5;
-                charParts.leftArm.rotation.x = -walkCycle * 0.5;
-                charParts.rightArm.rotation.x = walkCycle * 0.5;
-            }
 
             composer.render();
         }
