@@ -376,23 +376,24 @@
             scene.add(terrain);
         }
 
-        // --- PLAYER ---
+        // --- PLAYER BODY (RESTORED but WITHOUT TANK) ---
         const charParts = {};
         function createHuman() {
             const group = new THREE.Group();
             const suitMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
             const padMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }); 
-            const tankMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.3, metalness: 0.6 }); 
+            
+            // NOTE: I removed the tankMat and the Tank Mesh to stop the clipping "brown hump"
 
             const bodyOffsetZ = 0.05; 
 
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), suitMat);
             torso.position.set(0, 1.0, bodyOffsetZ); torso.castShadow = true; group.add(torso);
+            
             const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.05), padMat);
             chestPlate.position.set(0, 1.1, bodyOffsetZ - 0.16); group.add(chestPlate);
-            const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6), tankMat);
-            tank.rotation.z = Math.PI / 2; tank.rotation.y = Math.PI / 2;
-            tank.position.set(0, 1.1, bodyOffsetZ + 0.2); tank.castShadow = true; group.add(tank);
+            
+            // TANK REMOVED HERE
 
             const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), suitMat); leftLeg.geometry.translate(0, -0.4, 0);
             leftLeg.position.set(-0.13, 0.7, bodyOffsetZ); leftLeg.castShadow = true; group.add(leftLeg); charParts.leftLeg = leftLeg;
@@ -472,10 +473,10 @@
         const mushStemMesh = new THREE.InstancedMesh(mushStemGeo, mushStemMat, 8000);
         const mushCapMesh = new THREE.InstancedMesh(mushCapGeo, mushMat, 8000);
 
-        // --- IMPROVED GRASS SYSTEM ---
-        // Instead of billboards, we use a simple cross geometry that looks 3D
-        const grassBladeGeo = new THREE.PlaneGeometry(1.5, 3.5);
-        grassBladeGeo.translate(0, 1.75, 0);
+        // --- IMPROVED GRASS SYSTEM (SMALLER AND MORE) ---
+        // Smaller geometry: 1.0 width, 2.5 height
+        const grassBladeGeo = new THREE.PlaneGeometry(1.0, 2.5);
+        grassBladeGeo.translate(0, 1.25, 0);
         
         const grassMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -487,28 +488,19 @@
                 varying float vHeight;
                 uniform float time;
                 
-                // Rotation Matrix
-                mat4 rotationY( in float angle ) {
-                    return mat4(cos(angle),0,sin(angle),0,
-                                0,1,0,0,
-                                -sin(angle),0,cos(angle),0,
-                                0,0,0,1);
-                }
-
                 void main() {
                     vUv = uv;
                     vHeight = position.y;
-                    
                     vec3 pos = position;
-                    
-                    // Wind swaying effect at the top vertices
-                    if(pos.y > 0.5) {
-                        float wave = sin(time * 2.0 + instanceMatrix[3][0] * 0.5) * 0.5; // Use world X position for offset
-                        pos.x += wave * (pos.y * 0.3);
-                    }
-
                     vec4 worldPosition = instanceMatrix * vec4(pos, 1.0);
-                    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+                    
+                    if(pos.y > 0.5) {
+                        float wave = sin(time * 1.5 + worldPosition.x * 0.1 + worldPosition.z * 0.1) * 0.5;
+                        wave += sin(time * 3.0 + worldPosition.x * 0.2) * 0.1;
+                        pos.x += wave * (pos.y * 0.3);
+                        pos.z += wave * 0.5 * (pos.y * 0.3);
+                    }
+                    gl_Position = projectionMatrix * viewMatrix * (instanceMatrix * vec4(pos, 1.0));
                 }
             `,
             fragmentShader: `
@@ -517,16 +509,15 @@
                 uniform vec3 color;
                 
                 void main() {
-                    // Simple gradient from dark bottom to lighter top
-                    vec3 gradientColor = mix(color * 0.4, color * 1.3, vHeight / 4.0);
+                    vec3 gradientColor = mix(color * 0.3, color * 1.2, vHeight / 3.0);
                     gl_FragColor = vec4(gradientColor, 1.0);
                 }
             `,
             side: THREE.DoubleSide
         });
 
-        // We will make 2 meshes: one normal, one rotated 90 degrees to create the cross
-        const grassCount = 50000;
+        // Doubled count to 150k per plane = 300k blades total
+        const grassCount = 150000; 
         const grassMesh1 = new THREE.InstancedMesh(grassBladeGeo, grassMaterial, grassCount);
         const grassMesh2 = new THREE.InstancedMesh(grassBladeGeo, grassMaterial, grassCount);
 
@@ -563,7 +554,7 @@
         function plantVegetation() {
             let tIdx = 0; let mIdx = 0; let gIdx = 0; let rIdx = 0;
             let attempts = 0;
-            const loopMax = 150000; // Safety break
+            const loopMax = 150000; 
 
             // Trees & Mushrooms
             while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
@@ -599,7 +590,8 @@
 
             // Bushes & Grass & Rocks
             let bIdx = 0;
-            for(let i=0; i<60000; i++) { 
+            // Increased loop for dense grass scatter
+            for(let i=0; i<250000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
                 const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
@@ -613,12 +605,12 @@
                         dummy.updateMatrix();
                         bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
                     }
-                    if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST')) {
+                    if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST' || (biome.type === 'HIGHLANDS' && Math.random() > 0.4))) {
                         // Dense grass placement
                         dummy.position.set(bx, y, bz);
                         const s = 0.7 + Math.random() * 0.8;
                         dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*Math.PI, 0); // Random rotation
+                        dummy.rotation.set(0, Math.random()*Math.PI, 0); 
                         dummy.updateMatrix();
                         
                         grassMesh1.setMatrixAt(gIdx, dummy.matrix);
@@ -825,7 +817,6 @@
             let maxSpeed = isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
             
             if (isLocked || isMouseDown) {
-                // FIXED STRAFING LOGIC
                 const fwdX = Math.sin(player.angle); 
                 const fwdZ = Math.cos(player.angle);
                 const rightX = Math.cos(player.angle); 
@@ -833,10 +824,9 @@
 
                 if (keys.w) { dx -= fwdX; dz -= fwdZ; } 
                 if (keys.s) { dx += fwdX; dz += fwdZ; }
-                if (keys.a) { dx -= rightX; dz -= rightZ; } // Left
-                if (keys.d) { dx += rightX; dz += rightZ; } // Right
+                if (keys.a) { dx -= rightX; dz -= rightZ; } 
+                if (keys.d) { dx += rightX; dz += rightZ; } 
             } else {
-                // Tank controls when unlocked
                 if (keys.a) player.angle += 0.04; 
                 if (keys.d) player.angle -= 0.04;
                 const fwdX = Math.sin(player.angle); 
