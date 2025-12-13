@@ -376,15 +376,14 @@
             scene.add(terrain);
         }
 
-        // --- PLAYER BODY (RESTORED but WITHOUT TANK) ---
+        // --- PLAYER BODY ---
         const charParts = {};
         function createHuman() {
             const group = new THREE.Group();
             const suitMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
             const padMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }); 
+            // Tank Removed for visibility
             
-            // NOTE: I removed the tankMat and the Tank Mesh to stop the clipping "brown hump"
-
             const bodyOffsetZ = 0.05; 
 
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), suitMat);
@@ -392,8 +391,6 @@
             
             const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.05), padMat);
             chestPlate.position.set(0, 1.1, bodyOffsetZ - 0.16); group.add(chestPlate);
-            
-            // TANK REMOVED HERE
 
             const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), suitMat); leftLeg.geometry.translate(0, -0.4, 0);
             leftLeg.position.set(-0.13, 0.7, bodyOffsetZ); leftLeg.castShadow = true; group.add(leftLeg); charParts.leftLeg = leftLeg;
@@ -425,6 +422,12 @@
         const rabbitGeo = new THREE.BoxGeometry(0.4, 0.4, 0.5);
         const rabbitMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
 
+        // TITAN BUNNY GEOMETRY
+        const titanBodyGeo = new THREE.BoxGeometry(4, 5, 6);
+        const titanHeadGeo = new THREE.BoxGeometry(2.5, 2.5, 3);
+        const titanEarGeo = new THREE.BoxGeometry(0.8, 6, 0.8);
+        const titanMat = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.9 });
+
         function spawnAnimals() {
             // Bio-Cows
             for(let i=0; i<40; i++) {
@@ -453,6 +456,32 @@
                 group.position.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
                 scene.add(group);
                 animals.push({ mesh: group, type: 'rabbit', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
+            }
+
+            // TITAN BUNNIES (HUGE ALIEN RABBITS)
+            for(let i=0; i<15; i++) {
+                const group = new THREE.Group();
+                
+                // Body
+                const body = new THREE.Mesh(titanBodyGeo, titanMat);
+                body.position.y = 3.5; body.castShadow = true; group.add(body);
+                
+                // Head
+                const head = new THREE.Mesh(titanHeadGeo, titanMat);
+                head.position.set(0, 6.5, -2.5); group.add(head);
+
+                // Ears
+                const earL = new THREE.Mesh(titanEarGeo, titanMat);
+                earL.position.set(-0.8, 9.0, -2.5); group.add(earL);
+                const earR = new THREE.Mesh(titanEarGeo, titanMat);
+                earR.position.set(0.8, 9.0, -2.5); group.add(earR);
+
+                const angle = Math.random() * Math.PI * 2;
+                const r = 400 + Math.random() * 2000;
+                group.position.set(Math.cos(angle)*r, 0, Math.sin(angle)*r);
+                scene.add(group);
+                
+                animals.push({ mesh: group, type: 'titan', dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0 });
             }
         }
 
@@ -760,17 +789,21 @@
                     anim.dir.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
                     anim.timer = 0;
                 }
-                const speed = (anim.type === 'rabbit') ? 0.08 : 0.03;
+                const speed = (anim.type === 'rabbit') ? 0.08 : (anim.type === 'titan' ? 0.05 : 0.03);
                 anim.mesh.position.addScaledVector(anim.dir, speed); 
                 
-                // Rabbit hop
+                // Rabbit/Titan hop
                 let yOffset = 0;
                 if(anim.type === 'rabbit') {
                     yOffset = Math.abs(Math.sin(Date.now() * 0.01)) * 0.5;
+                } else if (anim.type === 'titan') {
+                    // Huge, heavy hops
+                    const hop = Math.sin(Date.now() * 0.002);
+                    if(hop > 0) yOffset = hop * 3.0; // High jump
                 }
 
                 const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
-                anim.mesh.position.y = h + yOffset + ((anim.type==='rabbit')?0.2:1.0);
+                anim.mesh.position.y = h + yOffset + ((anim.type==='rabbit')?0.2:(anim.type==='titan'?3.5:1.0));
                 anim.mesh.lookAt(anim.mesh.position.x + anim.dir.x, h + yOffset, anim.mesh.position.z + anim.dir.z);
             }
         }
