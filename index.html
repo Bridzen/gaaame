@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Grand Bosnia: Vertical Limit</title>
+    <title>Grand Bosnia: Vertical Limit (Lush Edition)</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -534,8 +534,8 @@
             for(let i=0; i<300; i++) {
                 spawnSingleItem('stick');
             }
-            // Grass
-            for(let i=0; i<200; i++) {
+            // Grass (INCREASED FROM 200 TO 800)
+            for(let i=0; i<800; i++) {
                 spawnSingleItem('grass');
             }
         }
@@ -837,7 +837,8 @@
             side: THREE.DoubleSide
         });
 
-        const grassCount = 350000; 
+        // INCREASED GRASS COUNT TO 1,200,000
+        const grassCount = 1200000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
 
         const rockGeo = new THREE.DodecahedronGeometry(3, 0); 
@@ -909,7 +910,8 @@
             scene.add(mushStemMesh); scene.add(mushCapMesh);
 
             let bIdx = 0;
-            for(let i=0; i<400000; i++) { 
+            // INCREASED LOOP TO 2,000,000 TO FILL DENSITY
+            for(let i=0; i<2000000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
                 const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
