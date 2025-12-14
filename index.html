@@ -857,6 +857,94 @@
             return true;
         }
 
+        function plantVegetation() {
+            let tIdx = 0; let mIdx = 0; let gIdx = 0; let rIdx = 0;
+            let attempts = 0;
+            const loopMax = 150000; 
+
+            while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
+                attempts++;
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 100 + Math.random() * 14500; 
+                const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
+                const y = getMeshHeight(tx, tz);
+                const normal = getSurfaceNormal(tx, tz);
+                const isFlat = normal.y > 0.75;
+                const biome = getBiomeData(tx, tz, y);
+                
+                if(y > -10 && isPositionFree(tx, tz, 10) && isFlat) {
+                    if (tIdx < treeCount && (biome.type === 'FOREST' || (biome.type === 'GRASSLAND' && Math.random() > 0.7))) {
+                        dummy.position.set(tx, y, tz);
+                        const s = 0.8 + Math.random() * 1.5; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*3, 0);
+                        dummy.updateMatrix();
+                        foliageMesh.setMatrixAt(tIdx, dummy.matrix); trunkMesh.setMatrixAt(tIdx, dummy.matrix);
+                        addToGrid(tx, tz, 2.0); tIdx++;
+                    } else if (mIdx < 8000 && biome.type === 'FOREST' && Math.random() > 0.5) {
+                        dummy.position.set(tx, y, tz);
+                        const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*3, 0);
+                        dummy.updateMatrix();
+                        mushStemMesh.setMatrixAt(mIdx, dummy.matrix); mushCapMesh.setMatrixAt(mIdx, dummy.matrix);
+                        addToGrid(tx, tz, 1.5); mIdx++;
+                    }
+                }
+            }
+            foliageMesh.count = tIdx; trunkMesh.count = tIdx;
+            mushStemMesh.count = mIdx; mushCapMesh.count = mIdx;
+            scene.add(foliageMesh); scene.add(trunkMesh);
+            scene.add(mushStemMesh); scene.add(mushCapMesh);
+
+            let bIdx = 0;
+            for(let i=0; i<400000; i++) { 
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 120 + Math.random() * 14500; 
+                const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
+                const y = getMeshHeight(bx, bz);
+                const biome = getBiomeData(bx, bz, y);
+
+                if(y > -10) {
+                    if(bIdx < bushCount && biome.type !== 'SNOW') {
+                         const normal = getSurfaceNormal(bx, bz);
+                         if (normal.y > 0.6) { 
+                            dummy.position.set(bx, y, bz);
+                            const s = 1.0 + Math.random() * 2.0; dummy.scale.set(s,s,s);
+                            dummy.updateMatrix();
+                            bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
+                         }
+                    }
+                    if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST' || (biome.type === 'HIGHLANDS' && Math.random() > 0.4))) {
+                        dummy.position.set(bx, y, bz);
+                        const s = 1.2 + Math.random() * 0.8; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
+                        grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
+                    }
+                    if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
+                        dummy.position.set(bx, y, bz);
+                        const s = 1.0 + Math.random() * 4.0; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+                        dummy.updateMatrix();
+                        rockMesh.setMatrixAt(rIdx, dummy.matrix); rIdx++;
+                    }
+                }
+            }
+            bushMesh.count = bIdx; rockMesh.count = rIdx; grassMesh.count = gIdx;
+            scene.add(bushMesh); scene.add(rockMesh); scene.add(grassMesh);
+        }
+        
+        function checkTreeCollision(px, pz) {
+            const cx = Math.floor(px/200); const cz = Math.floor(pz/200);
+            for(let i=-1; i<=1; i++) {
+                for(let j=-1; j<=1; j++) {
+                    const cell = collisionGrid[`${cx+i},${cz+j}`];
+                    if(cell) for(let k=0; k<cell.length; k++) {
+                        if((px - cell[k].x)**2 + (pz - cell[k].z)**2 < (3.5)**2) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         // Check collision against specific entities (cows)
         function checkEntityCollision(px, pz, ignoreMount) {
             for(let i=0; i<animals.length; i++) {
@@ -919,7 +1007,6 @@
                             player.grass -= 3;
                             document.getElementById('grass-count').innerText = player.grass;
                             nearest.tamed = true;
-                            // Visual feedback?
                             nearest.mesh.scale.multiplyScalar(1.1); // Grow slightly
                         }
                     }
@@ -1330,9 +1417,11 @@
                 
                 // Smooth Y for camera - SIT ON TOP OF COW
                 const mountY = getMeshHeight(player.x, player.z);
+                
                 // Body height 1.6 + Body Height 1.4 = ~3.0 high visual top. 
                 // Scaled by 4.0 = ~12.0 units high.
-                const rideHeight = 9.5; 
+                // 9.5 was a bit low, bumping to 11.5
+                const rideHeight = 11.5; 
                 
                 const targetCamY = mountY + rideHeight;
                 smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2);
