@@ -52,6 +52,7 @@
             position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
             color: #ffff00; font-weight: 900; font-size: 20px; letter-spacing: 2px;
             text-shadow: 0 0 10px #000; display: none; pointer-events: none; z-index: 100;
+            text-align: center;
         }
 
         #craft-prompt {
@@ -154,7 +155,7 @@
     <div id="crosshair"></div>
     <div id="damage-overlay"></div>
     <div id="pickup-msg">Stick Found</div>
-    <div id="interaction-prompt">[E] RIDE</div>
+    <div id="interaction-prompt"></div>
     <div id="craft-prompt">STICKS COLLECTED! PRESS 'C' TO CRAFT</div>
     <div id="time-disp">12:00</div>
 
@@ -213,6 +214,9 @@
                 <span style="opacity:0.7">STICKS:</span> <span id="stick-count" style="float:right; font-weight:bold;">0/2</span>
             </div>
             <div style="margin-top:5px;">
+                <span style="opacity:0.7">GRASS:</span> <span id="grass-count" style="float:right; font-weight:bold; color:#55ff55">0</span>
+            </div>
+            <div style="margin-top:5px;">
                 <span style="opacity:0.7">GEAR:</span> <span id="gear-disp" style="float:right; font-weight:bold; color:#888;">NONE</span>
             </div>
         </div>
@@ -224,7 +228,7 @@
     </div>
 
     <div id="controls">
-        WASD Move // SHIFT Run // E Ride // C Craft
+        WASD Move // SHIFT Run // E Interact // C Craft
     </div>
 
     <script type="module">
@@ -498,10 +502,12 @@
         }
         const playerMesh = createHuman();
 
-        // --- STICK SYSTEM ---
+        // --- COLLECTIBLES (STICKS & GRASS) ---
         const sticks = [];
         const stickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5);
         const stickMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+        const grassBundleGeo = new THREE.ConeGeometry(0.2, 0.6, 6);
+        const grassBundleMat = new THREE.MeshStandardMaterial({ color: 0x55ff55 });
 
         window.craftHikingSticks = function() {
             if (player.sticks >= 2) {
@@ -521,27 +527,40 @@
             try { document.body.requestPointerLock(); } catch(e){}
         };
 
-        function spawnSticks() {
+        function spawnCollectibles() {
+            // Sticks
             for(let i=0; i<300; i++) {
-                let spawned = false;
-                let attempts = 0;
-                while(!spawned && attempts < 10) {
-                    attempts++;
-                    const angle = Math.random() * Math.PI * 2;
-                    const r = 200 + Math.random() * 10000; 
-                    const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
-                    const h = getMeshHeight(tx, tz);
-                    const biome = getBiomeData(tx, tz, h);
-                    if (biome.type === 'FOREST' || biome.type === 'GRASSLAND') {
-                        const mesh = new THREE.Mesh(stickGeo, stickMat);
-                        mesh.position.set(tx, h + 0.1, tz);
+                spawnSingleItem('stick');
+            }
+            // Grass
+            for(let i=0; i<200; i++) {
+                spawnSingleItem('grass');
+            }
+        }
+
+        function spawnSingleItem(type) {
+            let spawned = false;
+            let attempts = 0;
+            while(!spawned && attempts < 10) {
+                attempts++;
+                const angle = Math.random() * Math.PI * 2;
+                const r = 200 + Math.random() * 10000; 
+                const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
+                const h = getMeshHeight(tx, tz);
+                const biome = getBiomeData(tx, tz, h);
+                if (biome.type === 'FOREST' || biome.type === 'GRASSLAND') {
+                    const geo = (type === 'stick') ? stickGeo : grassBundleGeo;
+                    const mat = (type === 'stick') ? stickMat : grassBundleMat;
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(tx, h + 0.1, tz);
+                    if(type === 'stick') {
                         mesh.rotation.z = Math.PI / 2;
                         mesh.rotation.y = Math.random() * Math.PI;
-                        mesh.castShadow = true;
-                        scene.add(mesh);
-                        sticks.push({ mesh: mesh, active: true });
-                        spawned = true;
                     }
+                    mesh.castShadow = true;
+                    scene.add(mesh);
+                    sticks.push({ mesh: mesh, active: true, type: type });
+                    spawned = true;
                 }
             }
         }
@@ -652,12 +671,10 @@
 
             // Distinct Ears (Pointy & Visible)
             const earGeo = new THREE.ConeGeometry(0.15, 0.5, 4);
-            // Left Ear
             const earL = new THREE.Mesh(earGeo, mat); 
             earL.position.set(-0.6, 0.3, 0); 
             earL.rotation.set(0, 0, 1.2); 
             headGroup.add(earL);
-            // Right Ear
             const earR = new THREE.Mesh(earGeo, mat); 
             earR.position.set(0.6, 0.3, 0); 
             earR.rotation.set(0, 0, -1.2); 
@@ -728,7 +745,8 @@
                         dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
                         timer: 0, state: 'IDLE', animOffset: Math.random() * 100,
                         nextStateTime: 100 + Math.random() * 200,
-                        radius: 3.5 // Collision Radius
+                        radius: 3.5,
+                        tamed: false
                     });
                 }
             }
@@ -839,94 +857,6 @@
             return true;
         }
 
-        function plantVegetation() {
-            let tIdx = 0; let mIdx = 0; let gIdx = 0; let rIdx = 0;
-            let attempts = 0;
-            const loopMax = 150000; 
-
-            while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
-                attempts++;
-                const angle = Math.random() * Math.PI * 2; 
-                const r = 100 + Math.random() * 14500; 
-                const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
-                const y = getMeshHeight(tx, tz);
-                const normal = getSurfaceNormal(tx, tz);
-                const isFlat = normal.y > 0.75;
-                const biome = getBiomeData(tx, tz, y);
-                
-                if(y > -10 && isPositionFree(tx, tz, 10) && isFlat) {
-                    if (tIdx < treeCount && (biome.type === 'FOREST' || (biome.type === 'GRASSLAND' && Math.random() > 0.7))) {
-                        dummy.position.set(tx, y, tz);
-                        const s = 0.8 + Math.random() * 1.5; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*3, 0);
-                        dummy.updateMatrix();
-                        foliageMesh.setMatrixAt(tIdx, dummy.matrix); trunkMesh.setMatrixAt(tIdx, dummy.matrix);
-                        addToGrid(tx, tz, 2.0); tIdx++;
-                    } else if (mIdx < 8000 && biome.type === 'FOREST' && Math.random() > 0.5) {
-                        dummy.position.set(tx, y, tz);
-                        const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*3, 0);
-                        dummy.updateMatrix();
-                        mushStemMesh.setMatrixAt(mIdx, dummy.matrix); mushCapMesh.setMatrixAt(mIdx, dummy.matrix);
-                        addToGrid(tx, tz, 1.5); mIdx++;
-                    }
-                }
-            }
-            foliageMesh.count = tIdx; trunkMesh.count = tIdx;
-            mushStemMesh.count = mIdx; mushCapMesh.count = mIdx;
-            scene.add(foliageMesh); scene.add(trunkMesh);
-            scene.add(mushStemMesh); scene.add(mushCapMesh);
-
-            let bIdx = 0;
-            for(let i=0; i<400000; i++) { 
-                const angle = Math.random() * Math.PI * 2; 
-                const r = 120 + Math.random() * 14500; 
-                const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
-                const y = getMeshHeight(bx, bz);
-                const biome = getBiomeData(bx, bz, y);
-
-                if(y > -10) {
-                    if(bIdx < bushCount && biome.type !== 'SNOW') {
-                         const normal = getSurfaceNormal(bx, bz);
-                         if (normal.y > 0.6) { 
-                            dummy.position.set(bx, y, bz);
-                            const s = 1.0 + Math.random() * 2.0; dummy.scale.set(s,s,s);
-                            dummy.updateMatrix();
-                            bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
-                         }
-                    }
-                    if(gIdx < grassCount && (biome.type === 'GRASSLAND' || biome.type === 'FOREST' || (biome.type === 'HIGHLANDS' && Math.random() > 0.4))) {
-                        dummy.position.set(bx, y, bz);
-                        const s = 1.2 + Math.random() * 0.8; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
-                        grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
-                    }
-                    if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
-                        dummy.position.set(bx, y, bz);
-                        const s = 1.0 + Math.random() * 4.0; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
-                        dummy.updateMatrix();
-                        rockMesh.setMatrixAt(rIdx, dummy.matrix); rIdx++;
-                    }
-                }
-            }
-            bushMesh.count = bIdx; rockMesh.count = rIdx; grassMesh.count = gIdx;
-            scene.add(bushMesh); scene.add(rockMesh); scene.add(grassMesh);
-        }
-        
-        function checkTreeCollision(px, pz) {
-            const cx = Math.floor(px/200); const cz = Math.floor(pz/200);
-            for(let i=-1; i<=1; i++) {
-                for(let j=-1; j<=1; j++) {
-                    const cell = collisionGrid[`${cx+i},${cz+j}`];
-                    if(cell) for(let k=0; k<cell.length; k++) {
-                        if((px - cell[k].x)**2 + (pz - cell[k].z)**2 < (3.5)**2) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
         // Check collision against specific entities (cows)
         function checkEntityCollision(px, pz, ignoreMount) {
             for(let i=0; i<animals.length; i++) {
@@ -935,7 +865,6 @@
                 if(anim.type === 'cow') {
                     const dx = px - anim.mesh.position.x;
                     const dz = pz - anim.mesh.position.z;
-                    // Combined radius (player ~0.5 + cow 3.5)
                     if(dx*dx + dz*dz < 4.0 * 4.0) return true;
                 }
             }
@@ -946,7 +875,7 @@
         const player = { 
             x: 0, z: 0, speed: 0, angle: 0, pitch: 0, y: 0, velocityY: 0, 
             isGrounded: true, stamina: 100, health: 100, isClimbing: false, 
-            sticks: 0, hasHikingSticks: false,
+            sticks: 0, grass: 0, hasHikingSticks: false,
             knX: 0, knZ: 0,
             isRiding: false, mount: null
         };
@@ -971,14 +900,10 @@
                 }
             }
             if(e.code === 'KeyE') {
-                // Try to mount or dismount
                 if(player.isRiding) {
-                    // Dismount handled in animate via space/toggle
-                    player.isRiding = false; 
-                    player.mount = null;
-                    player.y += 2.0; // Hop off
+                    // Dismount handled in animate
                 } else {
-                    // Find nearest cow
+                    // Check near cow
                     let nearest = null; let minDst = 10.0;
                     for(let i=0; i<animals.length; i++) {
                         if(animals[i].type === 'cow') {
@@ -987,8 +912,16 @@
                         }
                     }
                     if(nearest) {
-                        player.isRiding = true;
-                        player.mount = nearest;
+                        if(nearest.tamed) {
+                            player.isRiding = true;
+                            player.mount = nearest;
+                        } else if(player.grass >= 3) {
+                            player.grass -= 3;
+                            document.getElementById('grass-count').innerText = player.grass;
+                            nearest.tamed = true;
+                            // Visual feedback?
+                            nearest.mesh.scale.multiplyScalar(1.1); // Grow slightly
+                        }
                     }
                 }
             }
@@ -1032,7 +965,7 @@
                 generateTerrain();
                 plantVegetation();
                 spawnAnimals();
-                spawnSticks();
+                spawnCollectibles();
                 document.getElementById('start-screen').style.display = 'none';
                 player.x = 0; player.z = 0; player.y = getMeshHeight(0,0);
                 smoothCamY = player.y + 1.7; // Init
@@ -1067,16 +1000,24 @@
             dmgOverlay.style.display = 'none';
 
             // Interaction Prompt Logic
-            let canRide = false;
+            let promptText = "";
             if(!player.isRiding) {
+                let nearest = null; let minDst = 10.0;
                 for(let i=0; i<animals.length; i++) {
                     if(animals[i].type === 'cow') {
                         const d = animals[i].mesh.position.distanceTo(new THREE.Vector3(player.x, player.y, player.z));
-                        if(d < 6.0) canRide = true;
+                        if(d < 6.0 && d < minDst) { minDst = d; nearest = animals[i]; }
                     }
                 }
+                if(nearest) {
+                    if(nearest.tamed) promptText = "[E] RIDE";
+                    else if(player.grass >= 3) promptText = "[E] FEED (3 GRASS)";
+                    else promptText = "NEED 3 GRASS TO TAME";
+                }
             }
-            document.getElementById('interaction-prompt').style.display = canRide ? 'block' : 'none';
+            const promptEl = document.getElementById('interaction-prompt');
+            if(promptText !== "") { promptEl.style.display = 'block'; promptEl.innerText = promptText; }
+            else promptEl.style.display = 'none';
 
             for(let i=0; i<animals.length; i++) {
                 const anim = animals[i];
@@ -1087,13 +1028,11 @@
                     
                     if (player.isRiding && player.mount === anim) {
                         // PLAYER CONTROLLED
-                        // Position updated in main loop, just update visuals here
                         const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
                         anim.mesh.position.y = h;
                         
-                        // If moving, animate legs
                         if (keys.w || keys.s || keys.a || keys.d) {
-                            const t = time * 15; // Faster leg movement
+                            const t = time * 15; 
                             anim.parts.legFL.rotation.x = Math.sin(t) * 0.8;
                             anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
                             anim.parts.legBL.rotation.x = Math.cos(t) * 0.8;
@@ -1219,15 +1158,24 @@
                 if(sticks[i].active) {
                     const dx = player.x - sticks[i].mesh.position.x;
                     const dz = player.z - sticks[i].mesh.position.z;
-                    if(dx*dx + dz*dz < 4.0) { // 2m distance squared
+                    if(dx*dx + dz*dz < 4.0) { 
                         sticks[i].active = false;
                         sticks[i].mesh.visible = false;
-                        player.sticks++;
-                        document.getElementById('stick-count').innerText = player.sticks + "/2";
+                        
                         pickupTimer = 100;
                         document.getElementById('pickup-msg').style.opacity = 1;
-                        if(player.sticks >= 2 && !player.hasHikingSticks) {
-                            document.getElementById('craft-prompt').style.display = 'block';
+
+                        if(sticks[i].type === 'stick') {
+                            player.sticks++;
+                            document.getElementById('pickup-msg').innerText = "Stick Collected";
+                            document.getElementById('stick-count').innerText = player.sticks + "/2";
+                            if(player.sticks >= 2 && !player.hasHikingSticks) {
+                                document.getElementById('craft-prompt').style.display = 'block';
+                            }
+                        } else {
+                            player.grass++;
+                            document.getElementById('pickup-msg').innerText = "Grass Collected";
+                            document.getElementById('grass-count').innerText = player.grass;
                         }
                     }
                 }
@@ -1380,14 +1328,16 @@
                 player.x = mount.mesh.position.x;
                 player.z = mount.mesh.position.z;
                 
-                // Smooth Y for camera
+                // Smooth Y for camera - SIT ON TOP OF COW
                 const mountY = getMeshHeight(player.x, player.z);
-                const rideHeight = 3.5; // Sit on top
+                // Body height 1.6 + Body Height 1.4 = ~3.0 high visual top. 
+                // Scaled by 4.0 = ~12.0 units high.
+                const rideHeight = 9.5; 
                 
                 const targetCamY = mountY + rideHeight;
                 smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2);
                 
-                // Don't draw player mesh when riding (optional, but looks better 1st person)
+                // Don't draw player mesh when riding
                 playerMesh.visible = false;
 
             } else {
