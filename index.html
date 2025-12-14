@@ -735,6 +735,7 @@
         }
 
         function spawnAnimals() {
+            // COWS - SPAWN EVERYWHERE
             for(let i=0; i<30; i++) {
                 const cowObj = createSpaceCow();
                 const mesh = cowObj.mesh;
@@ -743,10 +744,10 @@
                 while(!spawned && attempts < 100) {
                     attempts++;
                     const angle = Math.random() * Math.PI * 2;
-                    const r = 500 + Math.random() * 8000;
+                    const r = 500 + Math.random() * 12000; // Increased range
                     const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
-                    const norm = getSurfaceNormal(tx, tz);
-                    if(norm.y > 0.8) { 
+                    const h = getMeshHeight(tx, tz);
+                    if(h > -5 && isPositionFree(tx, tz, 5.0)) { 
                         mesh.position.set(tx, 0, tz); 
                         spawned = true; 
                     }
@@ -764,6 +765,7 @@
                 }
             }
 
+            // TITAN BUNNIES - SPAWN EVERYWHERE
             for(let i=0; i<40; i++) {
                 const titanObj = createTitanBunny(3.5);
                 const mesh = titanObj.mesh;
@@ -772,11 +774,10 @@
                 while(!spawned && attempts < 200) {
                     attempts++;
                     const angle = Math.random() * Math.PI * 2;
-                    const r = 500 + Math.random() * 9500;
+                    const r = 500 + Math.random() * 14000; // Increased range
                     const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                     const h = getMeshHeight(tx, tz);
-                    const biome = getBiomeData(tx, tz, h);
-                    if(biome.type === 'FOREST' && isPositionFree(tx, tz, 5.0)) { 
+                    if(h > -5 && isPositionFree(tx, tz, 5.0)) { 
                         mesh.position.set(tx, 0, tz); 
                         spawned = true; 
                     }
@@ -809,8 +810,6 @@
         const mushStemMesh = new THREE.InstancedMesh(mushStemGeo, mushStemMat, 8000);
         const mushCapMesh = new THREE.InstancedMesh(mushCapGeo, mushMat, 8000);
 
-        // --- IMPROVED GRASS MESH ---
-        // Smaller, more blade-like to avoid the "Green Box" look
         const grassGeo = new THREE.BufferGeometry();
         const v1 = [ -0.15, 0, 0, 0.15, 0, 0, -0.15, 1.2, 0, 0.15, 0, 0, 0.15, 1.2, 0, -0.15, 1.2, 0 ];
         const v2 = [ 0, 0, -0.15, 0, 0, 0.15, 0, 1.2, -0.15, 0, 0, 0.15, 0, 1.2, 0.15, 0, 1.2, -0.15 ];
@@ -821,7 +820,7 @@
         grassGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
         const grassMaterial = new THREE.ShaderMaterial({
-            uniforms: { time: { value: 0 }, color: { value: new THREE.Color(0x77dd55) } }, // Brighter grass color
+            uniforms: { time: { value: 0 }, color: { value: new THREE.Color(0x77dd55) } }, 
             vertexShader: `
                 varying vec2 vUv; varying float vHeight; uniform float time;
                 void main() {
@@ -838,7 +837,6 @@
             side: THREE.DoubleSide
         });
 
-        // MASSIVELY INCREASED GRASS COUNT
         const grassCount = 450000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
 
@@ -873,12 +871,12 @@
         }
 
         function plantVegetation() {
-            let tIdx = 0; let mIdx = 0; let gIdx = 0; let rIdx = 0;
+            // PASS 1: TREES (DENSE FOREST FILL)
+            let tIdx = 0; 
             let attempts = 0;
-            const loopMax = 150000; 
+            const treeLoopMax = 300000; 
 
-            // TREE & MUSHROOM PLANTING
-            while((tIdx < treeCount || mIdx < 8000) && attempts < loopMax) {
+            while(tIdx < treeCount && attempts < treeLoopMax) {
                 attempts++;
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 100 + Math.random() * 14500; 
@@ -888,23 +886,39 @@
                 const isFlat = normal.y > 0.75;
                 const biome = getBiomeData(tx, tz, y);
                 
-                if(y > -10 && isPositionFree(tx, tz, 10) && isFlat) {
-                    // FOREST: Lots of trees
-                    // GRASSLAND: DRASTICALLY REDUCED TREES (0.2% chance)
+                if(y > -10 && isPositionFree(tx, tz, 6.0) && isFlat) {
                     let treeChance = 0;
-                    if(biome.type === 'FOREST') treeChance = 1.0;
+                    if(biome.type === 'FOREST') treeChance = 0.95; // Very high chance for density
                     else if (biome.type === 'GRASSLAND') treeChance = 0.002;
 
-                    if (tIdx < treeCount && Math.random() < treeChance) {
+                    if (Math.random() < treeChance) {
                         dummy.position.set(tx, y, tz);
                         const s = 0.8 + Math.random() * 1.5; dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*3, 0);
                         dummy.updateMatrix();
                         foliageMesh.setMatrixAt(tIdx, dummy.matrix); trunkMesh.setMatrixAt(tIdx, dummy.matrix);
-                        addToGrid(tx, tz, 2.0); tIdx++;
+                        addToGrid(tx, tz, 2.5); tIdx++;
                     } 
-                    
-                    if (mIdx < 8000 && biome.type === 'FOREST' && Math.random() > 0.6) {
+                }
+            }
+            foliageMesh.count = tIdx; trunkMesh.count = tIdx;
+            scene.add(foliageMesh); scene.add(trunkMesh);
+
+            // PASS 2: MUSHROOMS (ENSURE NO CLIPPING WITH TREES)
+            let mIdx = 0; 
+            attempts = 0;
+            const mushLoopMax = 100000;
+            while(mIdx < 8000 && attempts < mushLoopMax) {
+                attempts++;
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 100 + Math.random() * 14500; 
+                const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
+                const y = getMeshHeight(tx, tz);
+                const biome = getBiomeData(tx, tz, y);
+                
+                if(y > -10 && biome.type === 'FOREST') {
+                    // Critical: Check against trees (radius 2.5 + 2.0 margin)
+                    if (isPositionFree(tx, tz, 4.0)) { 
                         dummy.position.set(tx, y, tz);
                         const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*3, 0);
@@ -914,13 +928,11 @@
                     }
                 }
             }
-            foliageMesh.count = tIdx; trunkMesh.count = tIdx;
             mushStemMesh.count = mIdx; mushCapMesh.count = mIdx;
-            scene.add(foliageMesh); scene.add(trunkMesh);
             scene.add(mushStemMesh); scene.add(mushCapMesh);
 
-            // GRASS & BUSHES - INCREASED LOOP
-            let bIdx = 0;
+            // PASS 3: GRASS, BUSHES, ROCKS
+            let bIdx = 0; let gIdx = 0; let rIdx = 0;
             for(let i=0; i<600000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
@@ -938,7 +950,7 @@
                             bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
                          }
                     }
-                    // GRASS LOGIC: Heavy in Grassland, Medium in Forest, Sparse in Highlands
+                    // GRASS LOGIC
                     let grassChance = 0;
                     if(biome.type === 'GRASSLAND') grassChance = 1.0;
                     else if(biome.type === 'FOREST') grassChance = 0.4;
@@ -946,7 +958,6 @@
 
                     if(gIdx < grassCount && Math.random() < grassChance) {
                         dummy.position.set(bx, y, bz);
-                        // Varied grass height for natural look
                         const s = 0.8 + Math.random() * 0.8; 
                         dummy.scale.set(s,s,s);
                         dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
@@ -1325,8 +1336,36 @@
             if(player.pitch > maxUp) player.pitch = maxUp; if(player.pitch < maxDown) player.pitch = maxDown;
 
             const normal = getSurfaceNormal(player.x, player.z);
-            const slopeAngle = Math.acos(normal.y);
-            const slopePercent = Math.tan(slopeAngle) * 100;
+            let slopeAngle = Math.acos(normal.y);
+            let slopePercent = Math.tan(slopeAngle) * 100;
+
+            // --- COW PLATFORM LOGIC ---
+            let onCow = false;
+            let cowPlatformHeight = 0;
+            
+            if (!player.isRiding) {
+                for(let i=0; i<animals.length; i++) {
+                    if(animals[i].type === 'cow') {
+                        const cow = animals[i].mesh;
+                        // Cow scaled by 4. Body box ~ 1.4w x 2.2l. Scaled ~ 5.6w x 8.8l.
+                        // Rough bounding box check relative to cow rotation would be better, but distance is ok.
+                        const dx = player.x - cow.position.x;
+                        const dz = player.z - cow.position.z;
+                        const dist = Math.sqrt(dx*dx + dz*dz);
+                        
+                        // Check if roughly above cow
+                        if (dist < 5.0 && player.y >= cow.position.y + 7.0 && player.y <= cow.position.y + 12.0) {
+                            // Snap to cow back
+                            onCow = true;
+                            // Cow body top ~9.2 units above origin
+                            cowPlatformHeight = cow.position.y + 9.2;
+                            slopePercent = 0; // Immune to slope sliding
+                            slopeAngle = 0;
+                            break;
+                        }
+                    }
+                }
+            }
 
             const IMPOSSIBLE_SLOPE = player.hasHikingSticks ? 360 : 150;
             const CLIMB_ENTER = 60;
@@ -1334,25 +1373,32 @@
 
             let isImpossible = slopePercent > IMPOSSIBLE_SLOPE;
             
-            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible && !player.isRiding) {
+            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible && !player.isRiding && !onCow) {
                 player.isClimbing = true;
             } else if (player.isClimbing && slopePercent < CLIMB_EXIT) {
                 player.isClimbing = false;
-            } else if (isImpossible) {
+            } else if (isImpossible && !onCow) {
                 player.isClimbing = false;
             }
 
             // SPACE COW JUMP / DISMOUNT
             if (player.isRiding && keys.space) {
+                const mount = player.mount;
                 player.isRiding = false;
                 player.mount = null;
-                player.velocityY = 0.5;
-                player.isGrounded = false;
+                
+                // Place player ON TOP of cow
+                player.x = mount.mesh.position.x;
+                player.z = mount.mesh.position.z;
+                player.y = mount.mesh.position.y + 9.5; 
+                
+                player.velocityY = 0;
+                player.isGrounded = true;
                 lastSpacePress = true;
             }
 
             const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; 
-            const COW_SPEED = 1.2; // 2X FASTER AS REQUESTED
+            const COW_SPEED = 1.2; 
             const GRAVITY = 0.02;
             const isMoving = (keys.w || keys.s || keys.a || keys.d);
             let isSprinting = false;
@@ -1410,7 +1456,7 @@
                 }
             }
             
-            if (isImpossible && !player.isRiding) {
+            if (isImpossible && !player.isRiding && !onCow) {
                 dx += normal.x * 0.4; dz += normal.z * 0.4; 
             }
 
@@ -1468,7 +1514,10 @@
             } else {
                 // NORMAL MOVEMENT
                 playerMesh.visible = true;
-                const groundY = getMeshHeight(player.x, player.z);
+                
+                let groundY = getMeshHeight(player.x, player.z);
+                if (onCow) groundY = cowPlatformHeight; // Override ground height
+                
                 player.isGrounded = (player.y <= groundY + 0.1);
                 
                 if (!player.isGrounded && !player.isClimbing) {
@@ -1496,7 +1545,8 @@
                 const newZ = player.z + finalDz;
 
                 // Check Tree Collision & Cow Collision
-                if (!checkTreeCollision(newX, newZ) && !checkEntityCollision(newX, newZ, null)) { 
+                // If on cow, ignore cow collision
+                if (!checkTreeCollision(newX, newZ) && !checkEntityCollision(newX, newZ, onCow ? player.mount : null)) { 
                     player.x = newX; player.z = newZ; 
                 } else { 
                     // Sliding collision
@@ -1504,14 +1554,16 @@
                     else if (!checkTreeCollision(newX, player.z) && !checkEntityCollision(newX, player.z, null)) player.x = newX; 
                 }
 
+                // Re-calc height at new pos
                 const terrainHeight = getMeshHeight(player.x, player.z);
+                const finalGroundY = onCow ? cowPlatformHeight : terrainHeight;
                 
                 if (player.isClimbing) {
                     player.y = terrainHeight;
                 }
                 
-                if (player.y < terrainHeight) {
-                    player.y = terrainHeight;
+                if (player.y < finalGroundY) {
+                    player.y = finalGroundY;
                     player.velocityY = 0;
                     player.isGrounded = true;
                 }
