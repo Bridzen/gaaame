@@ -1324,7 +1324,7 @@
             }
 
             const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; 
-            const COW_SPEED = 0.6; // Very fast
+            const COW_SPEED = 1.2; // 2X FASTER AS REQUESTED
             const GRAVITY = 0.02;
             const isMoving = (keys.w || keys.s || keys.a || keys.d);
             let isSprinting = false;
@@ -1397,7 +1397,6 @@
             if(player.isRiding && player.mount) {
                 // MOVE MOUNT
                 const mount = player.mount;
-                const mNorm = getSurfaceNormal(mount.mesh.position.x, mount.mesh.position.z);
                 
                 let mDx = finalDx; let mDz = finalDz;
                 
@@ -1409,20 +1408,33 @@
                     mount.mesh.position.z = newMZ;
                 }
                 
-                // --- SLOPE MATCHING ---
-                // Align the cow's local UP vector to the terrain normal
-                mount.mesh.up.lerp(mNorm, 0.1); 
+                // --- IMPROVED SLOPE MATCHING ---
+                // 1. Get Normal at Center
+                const centerNorm = getSurfaceNormal(mount.mesh.position.x, mount.mesh.position.z);
+                
+                // 2. Look Ahead slightly to predict slope changes (prevents head clipping)
+                const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(mount.mesh.quaternion);
+                const headX = mount.mesh.position.x + fwd.x * 2.0;
+                const headZ = mount.mesh.position.z + fwd.z * 2.0;
+                const headNorm = getSurfaceNormal(headX, headZ);
 
-                // Determine look target
-                // If moving, look in movement direction. If idle, maintain forward.
+                // 3. Blend Normals
+                const targetNorm = centerNorm.clone().add(headNorm).normalize();
+                
+                // 4. Fast Lerp (0.6 instead of 0.1) for instant slope matching
+                mount.mesh.up.lerp(targetNorm, 0.6); 
+
+                // Determine look target projected onto the slope
                 let lookTarget;
                 if (Math.abs(mDx) > 0.001 || Math.abs(mDz) > 0.001) {
-                    // Look where we are going
-                    lookTarget = mount.mesh.position.clone().add(new THREE.Vector3(mDx, 0, mDz).normalize().multiplyScalar(10));
+                    const moveDir = new THREE.Vector3(mDx, 0, mDz).normalize();
+                    // Project moveDir onto the plane defined by targetNorm to get slope-forward
+                    const right = new THREE.Vector3(0, 1, 0).cross(moveDir).normalize();
+                    const slopeFwd = targetNorm.clone().cross(right).normalize();
+                    lookTarget = mount.mesh.position.clone().add(slopeFwd.multiplyScalar(10));
                 } else {
-                    // Maintain current forward (but adjusted for new UP via lookAt logic)
-                    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(mount.mesh.quaternion);
-                    lookTarget = mount.mesh.position.clone().add(fwd.multiplyScalar(10));
+                    const currentFwd = new THREE.Vector3(0, 0, 1).applyQuaternion(mount.mesh.quaternion);
+                    lookTarget = mount.mesh.position.clone().add(currentFwd.multiplyScalar(10));
                 }
                 mount.mesh.lookAt(lookTarget);
 
