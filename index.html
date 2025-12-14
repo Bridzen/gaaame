@@ -164,7 +164,7 @@
 
     <div id="start-screen">
         <h1 style="font-size:60px; margin-bottom:0px; letter-spacing: 5px; color: #fff;">PLANET BOSNIA</h1>
-        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Predator & Prey Update</p>
+        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Realism Update</p>
         <div class="btn" onclick="startGame()">INITIATE LANDING</div>
         <div id="loading">Generating Ecosystem...</div>
     </div>
@@ -603,84 +603,109 @@
             return { mesh: group, mat: mat, parts: { body, headGroup, earL, earR, legFL, legFR, legBL, legBR } };
         }
 
-        // Detailed Cow
+        // --- REALISTIC COW MODEL ---
         function createSpaceCow() {
             const group = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 }); 
-            const detailMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-            const hornMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.4 });
-            const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            // Rusty Brown Coat matching reference
+            const coatColor = 0xA0522D; 
+            const noseColor = 0xE6C2B0;
+            const hoofColor = 0x1a1a1a;
+            const eyeColor = 0x000000;
+            
+            const mat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.9, flatShading: true });
+            const noseMat = new THREE.MeshStandardMaterial({ color: noseColor, roughness: 0.5 });
+            const hoofMat = new THREE.MeshStandardMaterial({ color: hoofColor, roughness: 0.9 });
+            const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, roughness: 0.1 });
+            const hornMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 });
 
-            // Body
-            const bodyGeo = new THREE.BoxGeometry(1.6, 1.3, 2.4);
+            // Main Body (Heavy)
+            const bodyGeo = new THREE.BoxGeometry(1.4, 1.4, 2.2);
             const body = new THREE.Mesh(bodyGeo, mat);
             body.position.y = 1.6; body.castShadow = true;
             group.add(body);
 
-            // Neck Group
+            // Neck Group (Pivot for grazing)
             const neckGroup = new THREE.Group();
-            neckGroup.position.set(0, 2.0, 1.1); 
+            neckGroup.position.set(0, 2.0, 1.0); 
             group.add(neckGroup);
 
-            // Head
-            const headGeo = new THREE.BoxGeometry(0.8, 0.8, 1.0);
-            const head = new THREE.Mesh(headGeo, mat);
-            head.position.set(0, 0.2, 0.5); 
-            neckGroup.add(head);
+            // Neck Mesh
+            const neckGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const neck = new THREE.Mesh(neckGeo, mat);
+            neck.position.set(0, -0.2, 0.2); neck.rotation.x = -0.2;
+            neckGroup.add(neck);
 
-            // Eyes
-            const eyeGeo = new THREE.SphereGeometry(0.1);
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.41, 0.1, 0.2); head.add(eyeL);
-            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.41, 0.1, 0.2); head.add(eyeR);
+            // Head Group
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 0, 0.6);
+            neckGroup.add(headGroup);
 
-            // Ears
-            const earGeo = new THREE.BoxGeometry(0.3, 0.15, 0.1);
-            const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.55, 0.2, 0); earL.rotation.z = 0.2; head.add(earL);
-            const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.55, 0.2, 0); earR.rotation.z = -0.2; head.add(earR);
+            // Skull
+            const skullGeo = new THREE.BoxGeometry(0.9, 0.8, 0.7);
+            const skull = new THREE.Mesh(skullGeo, mat);
+            headGroup.add(skull);
 
-            // Snout
-            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.35, 0.35), detailMat);
-            snout.position.set(0, -0.2, 0.4);
-            head.add(snout);
+            // Snout (Pinkish)
+            const snoutGeo = new THREE.BoxGeometry(0.92, 0.35, 0.35);
+            const snout = new THREE.Mesh(snoutGeo, noseMat);
+            snout.position.set(0, -0.22, 0.35);
+            headGroup.add(snout);
 
-            // Horns
-            const hornGeo = new THREE.ConeGeometry(0.08, 0.6, 8);
-            const hornL = new THREE.Mesh(hornGeo, hornMat);
-            hornL.position.set(-0.3, 0.6, -0.2); hornL.rotation.z = 0.4;
-            head.add(hornL);
-            const hornR = new THREE.Mesh(hornGeo, hornMat);
-            hornR.position.set(0.3, 0.6, -0.2); hornR.rotation.z = -0.4;
-            head.add(hornR);
+            // Nostrils
+            const nostrilGeo = new THREE.BoxGeometry(0.1, 0.05, 0.02);
+            const nostrilL = new THREE.Mesh(nostrilGeo, eyeMat); nostrilL.position.set(-0.25, -0.2, 0.53); headGroup.add(nostrilL);
+            const nostrilR = new THREE.Mesh(nostrilGeo, eyeMat); nostrilR.position.set(0.25, -0.2, 0.53); headGroup.add(nostrilR);
+
+            // Eyes (Side of head)
+            const eyeGeo = new THREE.SphereGeometry(0.12);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.46, 0.1, 0.1); headGroup.add(eyeL);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.46, 0.1, 0.1); headGroup.add(eyeR);
+
+            // Ears (Detailed)
+            const earGeo = new THREE.BoxGeometry(0.4, 0.25, 0.1);
+            earGeo.translate(0.2, 0, 0); 
+            const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.45, 0.2, -0.1); earL.rotation.set(0, 0.5, 2.5); headGroup.add(earL);
+            const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.45, 0.2, -0.1); earR.rotation.set(0, -0.5, -2.5); headGroup.add(earR);
+
+            // Hair Tuft
+            const hairGeo = new THREE.DodecahedronGeometry(0.2);
+            const hair = new THREE.Mesh(hairGeo, mat);
+            hair.position.set(0, 0.45, 0.1); hair.scale.set(1, 0.5, 1);
+            headGroup.add(hair);
+
+            // Tiny Horn Nubs
+            const hornGeo = new THREE.ConeGeometry(0.04, 0.15, 8);
+            const hornL = new THREE.Mesh(hornGeo, hornMat); hornL.position.set(-0.3, 0.45, -0.1); hornL.rotation.z = -0.2; headGroup.add(hornL);
+            const hornR = new THREE.Mesh(hornGeo, hornMat); hornR.position.set(0.3, 0.45, -0.1); hornR.rotation.z = 0.2; headGroup.add(hornR);
 
             // Legs
-            const legGeo = new THREE.CylinderGeometry(0.25, 0.2, 1.3);
-            const legFL = new THREE.Mesh(legGeo, mat); legFL.position.set(-0.6, 0.65, 0.9); group.add(legFL);
-            const legFR = new THREE.Mesh(legGeo, mat); legFR.position.set(0.6, 0.65, 0.9); group.add(legFR);
-            const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.6, 0.65, -0.9); group.add(legBL);
-            const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.6, 0.65, -0.9); group.add(legBR);
+            function createLeg(x, z) {
+                const legGroup = new THREE.Group();
+                legGroup.position.set(x, 1.0, z);
+                const upper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.4), mat); upper.position.y = -0.35; legGroup.add(upper);
+                const lower = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), mat); lower.position.y = -1.0; legGroup.add(lower);
+                const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.15, 0.32), hoofMat); hoof.position.y = -1.35; legGroup.add(hoof);
+                return legGroup;
+            }
 
-            // Hooves
-            const hoofGeo = new THREE.BoxGeometry(0.3, 0.2, 0.3);
-            const hoofFL = new THREE.Mesh(hoofGeo, detailMat); hoofFL.position.y = -0.7; legFL.add(hoofFL);
-            const hoofFR = new THREE.Mesh(hoofGeo, detailMat); hoofFR.position.y = -0.7; legFR.add(hoofFR);
-            const hoofBL = new THREE.Mesh(hoofGeo, detailMat); hoofBL.position.y = -0.7; legBL.add(hoofBL);
-            const hoofBR = new THREE.Mesh(hoofGeo, detailMat); hoofBR.position.y = -0.7; legBR.add(hoofBR);
+            const legFL = createLeg(-0.6, 0.9); group.add(legFL);
+            const legFR = createLeg(0.6, 0.9); group.add(legFR);
+            const legBL = createLeg(-0.6, -0.9); group.add(legBL);
+            const legBR = createLeg(0.6, -0.9); group.add(legBR);
 
-            // Tail
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0), mat);
-            tail.position.set(0, 1.8, -1.2); tail.rotation.x = -0.5;
+            // Tail with tuft
+            const tailGeo = new THREE.CylinderGeometry(0.08, 0.05, 1.2);
+            const tail = new THREE.Mesh(tailGeo, mat);
+            tail.position.set(0, 1.5, -1.1); tail.rotation.x = 0.5;
+            const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.15), mat); tuft.position.y = -0.6; tail.add(tuft);
             group.add(tail);
 
-            // Udders
-            const udder = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.7), new THREE.MeshStandardMaterial({color: 0xffaaaa}));
-            udder.position.set(0, 0.8, -0.2);
-            group.add(udder);
-
-            group.scale.set(5.0, 5.0, 5.0);
+            // Scale (Bigger than bunnies)
+            group.scale.set(4.0, 4.0, 4.0);
 
             return { 
                 mesh: group, 
-                parts: { neckGroup, head, legFL, legFR, legBL, legBR, tail } 
+                parts: { neckGroup, headGroup, legFL, legFR, legBL, legBR, tail } 
             };
         }
 
@@ -1065,7 +1090,7 @@
                     anim.dir.lerp(targetDir, 0.1);
                     
                     // Attack Animation: Lunge forward
-                    anim.parts.body.rotation.x = -Math.PI / 4; // Rears back/lunges
+                    anim.parts.body.rotation.x = -Math.PI / 4; 
                     
                     if (distToPlayer < 4.0) {
                         dmgOverlay.style.display = 'block';
@@ -1077,14 +1102,13 @@
                         const knockForce = 1.8;
                         player.knX += targetDir.x * knockForce;
                         player.knZ += targetDir.z * knockForce;
-                        player.velocityY = 0.5; // Pop up slightly
+                        player.velocityY = 0.5; 
                         player.isGrounded = false;
                         
                         // Push bunny back slightly so it doesn't multi-hit instantly
                         anim.mesh.position.addScaledVector(targetDir, -5.0);
                     }
                 } else {
-                    // Reset body rotation
                     anim.parts.body.rotation.x = 0;
                 }
 
