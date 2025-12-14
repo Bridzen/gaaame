@@ -165,7 +165,7 @@
 
     <div id="start-screen">
         <h1 style="font-size:60px; margin-bottom:0px; letter-spacing: 5px; color: #fff;">PLANET BOSNIA</h1>
-        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Survival Update</p>
+        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Predator Update</p>
         <div class="btn" onclick="startGame()">INITIATE LANDING</div>
         <div id="loading">Generating Ecosystem...</div>
     </div>
@@ -598,8 +598,9 @@
                     const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                     const h = getMeshHeight(tx, tz);
                     const biome = getBiomeData(tx, tz, h);
-                    const norm = getSurfaceNormal(tx, tz);
-                    if(biome.type === 'FOREST' && norm.y > 0.6 && isPositionFree(tx, tz, 5.0)) { 
+                    
+                    // FIXED: Spawn anywhere in forest, ignoring slope check so they can be on cliffs
+                    if(biome.type === 'FOREST' && isPositionFree(tx, tz, 5.0)) { 
                         mesh.position.set(tx, 0, tz); 
                         spawned = true; 
                     }
@@ -906,30 +907,61 @@
                     const randDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
                     const lookAheadDist = 10.0;
                     const futureNormal = getSurfaceNormal(currentPos.x + randDir.x * lookAheadDist, currentPos.z + randDir.z * lookAheadDist);
-                    if (futureNormal.y < 0.85) { anim.dir.x = futureNormal.x; anim.dir.z = futureNormal.z; anim.dir.normalize(); } 
+                    // Titans ignore cliff avoidance to climb walls
+                    if (anim.type !== 'titan' && futureNormal.y < 0.85) { anim.dir.x = futureNormal.x; anim.dir.z = futureNormal.z; anim.dir.normalize(); } 
                     else { anim.dir = randDir; }
                     anim.timer = 0;
                 }
 
                 const normal = getSurfaceNormal(currentPos.x, currentPos.z);
-                if (normal.y < 0.85) { anim.dir.x += normal.x * 0.1; anim.dir.z += normal.z * 0.1; anim.dir.normalize(); }
+                // Titans ignore cliff avoidance
+                if (anim.type !== 'titan' && normal.y < 0.85) { anim.dir.x += normal.x * 0.1; anim.dir.z += normal.z * 0.1; anim.dir.normalize(); }
 
                 const speed = (anim.state === 'ATTACK') ? 0.18 : ((anim.type === 'cow') ? 0.03 : 0.06);
+                
+                // Move based on direction
                 anim.mesh.position.addScaledVector(anim.dir, speed); 
 
                 const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
                 
                 if(anim.type === 'titan') {
+                    // ANT-LIKE STICKING LOGIC
+                    
+                    // 1. Get the normal at the NEW position
+                    const newNormal = getSurfaceNormal(anim.mesh.position.x, anim.mesh.position.z);
+                    
+                    // 2. Align "up" vector to surface normal (smoothly)
+                    const targetUp = newNormal.clone();
+                    anim.mesh.up.lerp(targetUp, 0.2); 
+                    
+                    // 3. Look in movement direction
+                    const lookTarget = anim.mesh.position.clone().add(anim.dir);
+                    anim.mesh.lookAt(lookTarget);
+
+                    // 4. Position: Place at terrain height, then offset perpendicular to surface for the hop
+                    // Calculate hop scalar
                     const freq = (anim.state === 'ATTACK') ? 12.0 : 3.0; 
                     const t = time * freq + anim.animOffset;
-                    anim.mesh.position.y = h + Math.abs(Math.sin(t)) * (anim.state === 'ATTACK' ? 0.5 : 1.5);
+                    const hopHeight = Math.abs(Math.sin(t)) * (anim.state === 'ATTACK' ? 0.5 : 1.5);
+                    
+                    // Set base position to terrain
+                    anim.mesh.position.y = h;
+                    
+                    // Add the hop along the surface normal (up vector)
+                    anim.mesh.position.addScaledVector(newNormal, hopHeight);
+                    
+                    // Animate legs
                     if(anim.parts) {
                         anim.parts.legFL.rotation.x = Math.sin(t) * 0.8; anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
                         anim.parts.legBL.rotation.x = Math.cos(t) * 0.8; anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
                     }
-                } else { anim.mesh.position.y = h + 1.0; }
-                const lookTarget = new THREE.Vector3(anim.mesh.position.x + anim.dir.x, anim.mesh.position.y, anim.mesh.position.z + anim.dir.z);
-                anim.mesh.lookAt(lookTarget);
+
+                } else { 
+                    // Standard gravity for cows
+                    anim.mesh.position.y = h + 1.0; 
+                    const lookTarget = new THREE.Vector3(anim.mesh.position.x + anim.dir.x, anim.mesh.position.y, anim.mesh.position.z + anim.dir.z);
+                    anim.mesh.lookAt(lookTarget);
+                }
             }
         }
 
