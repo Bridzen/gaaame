@@ -254,7 +254,7 @@
         const particles = new THREE.Points(particlesGeo, particlesMat);
         scene.add(particles);
 
-        // --- STARS ---
+        // --- STARS (Fixed: Not blocky) ---
         const starGeo = new THREE.BufferGeometry();
         const starCount = 6000;
         const starArr = new Float32Array(starCount * 3);
@@ -262,7 +262,7 @@
             starArr[i] = (Math.random() - 0.5) * 12000;
         }
         starGeo.setAttribute('position', new THREE.BufferAttribute(starArr, 3));
-        const starMat = new THREE.PointsMaterial({ size: 30, color: 0xffffff, sizeAttenuation: false, transparent: true, opacity: 0 });
+        const starMat = new THREE.PointsMaterial({ size: 2.0, color: 0xffffff, sizeAttenuation: false, transparent: true, opacity: 0 });
         const stars = new THREE.Points(starGeo, starMat);
         scene.add(stars);
 
@@ -434,36 +434,50 @@
             scene.add(terrain);
         }
 
-        // --- PLAYER BODY ---
+        // --- PLAYER BODY (Improved: Less Blocky, Better Offset) ---
         const charParts = {};
         function createHuman() {
             const group = new THREE.Group();
             const suitMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
             const padMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }); 
             
-            const bodyOffsetZ = 0.05; 
+            // Adjusted offset: -0.25 places the "neck" slightly behind the eyes (0,0,0)
+            // This prevents the body from clipping when running forward, but keeps it visible looking down.
+            const bodyOffsetZ = -0.25; 
 
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), suitMat);
-            torso.position.set(0, 1.0, bodyOffsetZ); torso.castShadow = true; group.add(torso);
+            // Torso (Smoothed box)
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.25), suitMat);
+            torso.position.set(0, 1.05, bodyOffsetZ); torso.castShadow = true; group.add(torso);
             
-            const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.05), padMat);
-            chestPlate.position.set(0, 1.1, bodyOffsetZ - 0.16); group.add(chestPlate);
+            // Chest plate
+            const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), padMat);
+            chestPlate.position.set(0, 1.15, bodyOffsetZ - 0.13); group.add(chestPlate);
 
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), suitMat); leftLeg.geometry.translate(0, -0.4, 0);
-            leftLeg.position.set(-0.13, 0.7, bodyOffsetZ); leftLeg.castShadow = true; group.add(leftLeg); charParts.leftLeg = leftLeg;
-            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), suitMat); rightLeg.geometry.translate(0, -0.4, 0);
-            rightLeg.position.set(0.13, 0.7, bodyOffsetZ); rightLeg.castShadow = true; group.add(rightLeg); charParts.rightLeg = rightLeg;
-
-            const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.35), padMat); lBoot.position.set(0, -0.8, -0.05); leftLeg.add(lBoot);
-            const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.35), padMat); rBoot.position.set(0, -0.8, -0.05); rightLeg.add(rBoot);
+            // Legs (Capsules for smoother look)
+            const legGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);
+            const leftLeg = new THREE.Mesh(legGeo, suitMat); 
+            leftLeg.position.set(-0.15, 0.5, bodyOffsetZ); leftLeg.castShadow = true; group.add(leftLeg); charParts.leftLeg = leftLeg;
             
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.75, 0.15), suitMat); leftArm.geometry.translate(0, -0.3, 0);
-            leftArm.position.set(-0.35, 1.35, bodyOffsetZ); leftArm.rotation.z = 0.1; leftArm.castShadow = true; group.add(leftArm); charParts.leftArm = leftArm;
-            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.75, 0.15), suitMat); rightArm.geometry.translate(0, -0.3, 0);
-            rightArm.position.set(0.35, 1.35, bodyOffsetZ); rightArm.rotation.z = -0.1; rightArm.castShadow = true; group.add(rightArm); charParts.rightArm = rightArm;
+            const rightLeg = new THREE.Mesh(legGeo, suitMat); 
+            rightLeg.position.set(0.15, 0.5, bodyOffsetZ); rightLeg.castShadow = true; group.add(rightLeg); charParts.rightLeg = rightLeg;
 
-            const lGlove = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.16), padMat); lGlove.position.set(0, -0.7, 0); leftArm.add(lGlove);
-            const rGlove = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.16), padMat); rGlove.position.set(0, -0.7, 0); rightArm.add(rGlove);
+            // Boots
+            const bootGeo = new THREE.BoxGeometry(0.18, 0.15, 0.3);
+            const lBoot = new THREE.Mesh(bootGeo, padMat); lBoot.position.set(0, -0.35, -0.05); leftLeg.add(lBoot);
+            const rBoot = new THREE.Mesh(bootGeo, padMat); rBoot.position.set(0, -0.35, -0.05); rightLeg.add(rBoot);
+            
+            // Arms (Capsules)
+            const armGeo = new THREE.CapsuleGeometry(0.09, 0.5, 4, 8);
+            const leftArm = new THREE.Mesh(armGeo, suitMat);
+            leftArm.position.set(-0.35, 1.3, bodyOffsetZ); leftArm.rotation.z = 0.1; leftArm.castShadow = true; group.add(leftArm); charParts.leftArm = leftArm;
+            
+            const rightArm = new THREE.Mesh(armGeo, suitMat);
+            rightArm.position.set(0.35, 1.3, bodyOffsetZ); rightArm.rotation.z = -0.1; rightArm.castShadow = true; group.add(rightArm); charParts.rightArm = rightArm;
+
+            // Gloves
+            const gloveGeo = new THREE.BoxGeometry(0.12, 0.15, 0.12);
+            const lGlove = new THREE.Mesh(gloveGeo, padMat); lGlove.position.set(0, -0.35, 0); leftArm.add(lGlove);
+            const rGlove = new THREE.Mesh(gloveGeo, padMat); rGlove.position.set(0, -0.35, 0); rightArm.add(rGlove);
 
             scene.add(group);
             return group;
@@ -475,7 +489,6 @@
         const stickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5);
         const stickMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
 
-        // Add to global scope for HTML onclick
         window.craftHikingSticks = function() {
             if (player.sticks >= 2) {
                 player.sticks -= 2;
@@ -1065,7 +1078,7 @@
 
             if (isMoving && player.isGrounded) { animationTime += (isSprinting ? 0.3 : 0.15); }
             
-            // --- SMOOTH CAMERA Y ---
+            // --- SMOOTH CAMERA Y & ATTACHED BODY ---
             // Interpolate camera Y instead of snapping to prevent jitter on slopes
             const targetCamY = player.y + 1.7;
             smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); // 0.2 smoothing factor
@@ -1093,7 +1106,11 @@
             camera.rotation.x = player.pitch;
             camera.rotation.y = player.angle;
 
-            playerMesh.position.set(player.x, player.y, player.z);
+            // FIX: VISUAL BODY SYNC
+            // We set the body mesh position using 'smoothCamY' (offset by eye height 1.7).
+            // This ensures that even if the camera lags due to lerp (smoothing), the body lags WITH it.
+            // This prevents the body from appearing to "fly up" or clip during jumps/falls.
+            playerMesh.position.set(player.x, smoothCamY - 1.7, player.z);
             playerMesh.rotation.y = player.angle + Math.PI; 
 
             composer.render();
