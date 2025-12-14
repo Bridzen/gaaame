@@ -541,8 +541,8 @@
             for(let i=0; i<300; i++) {
                 spawnSingleItem('stick');
             }
-            // Grass
-            for(let i=0; i<3000; i++) {
+            // Grass - INCREASED COUNT
+            for(let i=0; i<10000; i++) {
                 spawnSingleItem('grass');
             }
         }
@@ -838,7 +838,8 @@
             side: THREE.DoubleSide
         });
 
-        const grassCount = 180000; 
+        // MASSIVELY INCREASED GRASS COUNT
+        const grassCount = 450000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
 
         const rockGeo = new THREE.DodecahedronGeometry(3, 0); 
@@ -889,10 +890,10 @@
                 
                 if(y > -10 && isPositionFree(tx, tz, 10) && isFlat) {
                     // FOREST: Lots of trees
-                    // GRASSLAND: Very few trees (only 5% chance compared to forest)
+                    // GRASSLAND: DRASTICALLY REDUCED TREES (0.2% chance)
                     let treeChance = 0;
                     if(biome.type === 'FOREST') treeChance = 1.0;
-                    else if (biome.type === 'GRASSLAND') treeChance = 0.05;
+                    else if (biome.type === 'GRASSLAND') treeChance = 0.002;
 
                     if (tIdx < treeCount && Math.random() < treeChance) {
                         dummy.position.set(tx, y, tz);
@@ -918,9 +919,9 @@
             scene.add(foliageMesh); scene.add(trunkMesh);
             scene.add(mushStemMesh); scene.add(mushCapMesh);
 
-            // GRASS & BUSHES
+            // GRASS & BUSHES - INCREASED LOOP
             let bIdx = 0;
-            for(let i=0; i<300000; i++) { 
+            for(let i=0; i<600000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
                 const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
