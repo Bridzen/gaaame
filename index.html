@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Grand Bosnia: Vertical Limit (Forager Edition)</title>
+    <title>Grand Bosnia: Vertical Limit (Slope Rider Edition)</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -534,7 +534,7 @@
             for(let i=0; i<300; i++) {
                 spawnSingleItem('stick');
             }
-            // Grass (INCREASED TO 3000)
+            // Grass
             for(let i=0; i<3000; i++) {
                 spawnSingleItem('grass');
             }
@@ -830,7 +830,6 @@
             side: THREE.DoubleSide
         });
 
-        // REDUCED VISUAL GRASS COUNT TO 100,000
         const grassCount = 100000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
 
@@ -903,7 +902,6 @@
             scene.add(mushStemMesh); scene.add(mushCapMesh);
 
             let bIdx = 0;
-            // REDUCED LOOP TO 300,000
             for(let i=0; i<300000; i++) { 
                 const angle = Math.random() * Math.PI * 2; 
                 const r = 120 + Math.random() * 14500; 
@@ -1401,10 +1399,8 @@
                 const mount = player.mount;
                 const mNorm = getSurfaceNormal(mount.mesh.position.x, mount.mesh.position.z);
                 
-                // Allow climb but slower
                 let mDx = finalDx; let mDz = finalDz;
-                if(mNorm.y < 0.6) { mDx *= 0.5; mDz *= 0.5; }
-
+                
                 const newMX = mount.mesh.position.x + mDx;
                 const newMZ = mount.mesh.position.z + mDz;
                 
@@ -1413,26 +1409,26 @@
                     mount.mesh.position.z = newMZ;
                 }
                 
-                // Rotation matches movement
-                if (mDx !== 0 || mDz !== 0) {
-                    const lookT = mount.mesh.position.clone().add(new THREE.Vector3(mDx, 0, mDz));
-                    mount.mesh.lookAt(lookT);
-                }
+                // --- SLOPE MATCHING ---
+                // Align the cow's local UP vector to the terrain normal
+                mount.mesh.up.lerp(mNorm, 0.1); 
 
-                // Snap player to mount
+                // Determine look target
+                // If moving, look in movement direction. If idle, maintain forward.
+                let lookTarget;
+                if (Math.abs(mDx) > 0.001 || Math.abs(mDz) > 0.001) {
+                    // Look where we are going
+                    lookTarget = mount.mesh.position.clone().add(new THREE.Vector3(mDx, 0, mDz).normalize().multiplyScalar(10));
+                } else {
+                    // Maintain current forward (but adjusted for new UP via lookAt logic)
+                    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(mount.mesh.quaternion);
+                    lookTarget = mount.mesh.position.clone().add(fwd.multiplyScalar(10));
+                }
+                mount.mesh.lookAt(lookTarget);
+
+                // Snap player X/Z to mount for collision/logic consistency
                 player.x = mount.mesh.position.x;
                 player.z = mount.mesh.position.z;
-                
-                // Smooth Y for camera - SIT ON TOP OF COW
-                const mountY = getMeshHeight(player.x, player.z);
-                
-                // Body height 1.6 + Body Height 1.4 = ~3.0 high visual top. 
-                // Scaled by 4.0 = ~12.0 units high.
-                // 9.5 was a bit low, bumping to 11.5
-                const rideHeight = 11.5; 
-                
-                const targetCamY = mountY + rideHeight;
-                smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2);
                 
                 // Don't draw player mesh when riding
                 playerMesh.visible = false;
@@ -1502,8 +1498,16 @@
                 const bobOffset = Math.sin(animationTime * 0.8) * 0.05;
                 camera.position.set(player.x, smoothCamY + bobOffset, player.z);
             } else if (player.isRiding) {
-                const bobOffset = Math.sin(animationTime * 1.5) * 0.1; // Bouncy ride
-                camera.position.set(player.x, smoothCamY + bobOffset, player.z);
+                // Calculate camera position relative to the TILTED cow
+                // The seat offset is relative to the cow's center
+                const seatOffset = new THREE.Vector3(0, 11.0, 0.5); 
+                seatOffset.applyQuaternion(player.mount.mesh.quaternion);
+                
+                const camPos = player.mount.mesh.position.clone().add(seatOffset);
+                const bobOffset = Math.sin(animationTime * 1.5) * 0.1; 
+                
+                camera.position.copy(camPos);
+                camera.position.y += bobOffset;
             } else {
                 const bobOffset = Math.sin(animationTime) * 0.08;
                 const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
