@@ -506,7 +506,9 @@
         const sticks = [];
         const stickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5);
         const stickMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+        // Fixed Grass Geo (Pivot at bottom)
         const grassBundleGeo = new THREE.ConeGeometry(0.2, 0.6, 6);
+        grassBundleGeo.translate(0, 0.3, 0); 
         const grassBundleMat = new THREE.MeshStandardMaterial({ color: 0x55ff55 });
 
         window.craftHikingSticks = function() {
@@ -552,10 +554,21 @@
                     const geo = (type === 'stick') ? stickGeo : grassBundleGeo;
                     const mat = (type === 'stick') ? stickMat : grassBundleMat;
                     const mesh = new THREE.Mesh(geo, mat);
-                    mesh.position.set(tx, h + 0.1, tz);
+                    
                     if(type === 'stick') {
+                        mesh.position.set(tx, h + 0.1, tz);
                         mesh.rotation.z = Math.PI / 2;
                         mesh.rotation.y = Math.random() * Math.PI;
+                    } else {
+                        // Grass
+                        mesh.position.set(tx, h, tz);
+                        // Optional: Align to slope
+                        /*
+                        const norm = getSurfaceNormal(tx, tz);
+                        const targetUp = norm.clone();
+                        mesh.lookAt(mesh.position.clone().add(norm));
+                        mesh.rotateX(Math.PI / 2); // Align cone up
+                        */
                     }
                     mesh.castShadow = true;
                     scene.add(mesh);
