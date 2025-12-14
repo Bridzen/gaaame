@@ -48,6 +48,12 @@
             opacity: 0; transition: opacity 0.5s; pointer-events: none;
         }
 
+        #interaction-prompt {
+            position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
+            color: #ffff00; font-weight: 900; font-size: 20px; letter-spacing: 2px;
+            text-shadow: 0 0 10px #000; display: none; pointer-events: none; z-index: 100;
+        }
+
         #craft-prompt {
             position: absolute; bottom: 80px; width: 100%; text-align: center;
             color: #ffff00; font-weight: 900; font-size: 18px; letter-spacing: 2px;
@@ -148,6 +154,7 @@
     <div id="crosshair"></div>
     <div id="damage-overlay"></div>
     <div id="pickup-msg">Stick Found</div>
+    <div id="interaction-prompt">[E] RIDE</div>
     <div id="craft-prompt">STICKS COLLECTED! PRESS 'C' TO CRAFT</div>
     <div id="time-disp">12:00</div>
 
@@ -164,7 +171,7 @@
 
     <div id="start-screen">
         <h1 style="font-size:60px; margin-bottom:0px; letter-spacing: 5px; color: #fff;">PLANET BOSNIA</h1>
-        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Realism Update</p>
+        <p style="font-size:16px; opacity:0.6; letter-spacing: 4px; text-transform:uppercase;">Rider Update</p>
         <div class="btn" onclick="startGame()">INITIATE LANDING</div>
         <div id="loading">Generating Ecosystem...</div>
     </div>
@@ -217,7 +224,7 @@
     </div>
 
     <div id="controls">
-        WASD Move // SHIFT Run // C Craft
+        WASD Move // SHIFT Run // E Ride // C Craft
     </div>
 
     <script type="module">
@@ -549,11 +556,9 @@
             const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000 });
             const toothMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
-            // Body
             const body = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0, 1), mat);
             body.scale.set(1.1, 0.9, 1.3); body.position.y = 1.2; body.castShadow = true; group.add(body);
             
-            // Head Group
             const headGroup = new THREE.Group();
             headGroup.position.set(0, 1.9, 0.8);
             group.add(headGroup);
@@ -561,52 +566,44 @@
             const head = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.0), mat);
             headGroup.add(head);
 
-            // Snout
             const snout = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.3), darkMat);
             snout.position.set(0, -0.1, 0.6); headGroup.add(snout);
 
-            // Teeth
             const toothL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.05), toothMat);
             toothL.position.set(-0.1, -0.35, 0.65); headGroup.add(toothL);
             const toothR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.05), toothMat);
             toothR.position.set(0.1, -0.35, 0.65); headGroup.add(toothR);
 
-            // Eyes
             const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat);
             eyeL.position.set(-0.3, 0.1, 0.5); headGroup.add(eyeL);
             const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat);
             eyeR.position.set(0.3, 0.1, 0.5); headGroup.add(eyeR);
 
-            // Ears
             const earGeo = new THREE.CapsuleGeometry(0.12, 1.0, 4, 8);
             const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.3, 0.7, 0); earL.rotation.z = 0.2; headGroup.add(earL);
             const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.3, 0.7, 0); earR.rotation.z = -0.2; headGroup.add(earR);
             
-            // Legs
             const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8);
             const legFL = new THREE.Mesh(legGeo, mat); legFL.position.set(-0.5, 0.4, 0.6); group.add(legFL);
             const legFR = new THREE.Mesh(legGeo, mat); legFR.position.set(0.5, 0.4, 0.6); group.add(legFR);
             const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.6, 0.4, -0.6); group.add(legBL);
             const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.6, 0.4, -0.6); group.add(legBR);
             
-            // Paws
             const pawGeo = new THREE.SphereGeometry(0.2);
             const pawFL = new THREE.Mesh(pawGeo, darkMat); pawFL.position.y = -0.4; legFL.add(pawFL);
             const pawFR = new THREE.Mesh(pawGeo, darkMat); pawFR.position.y = -0.4; legFR.add(pawFR);
             const pawBL = new THREE.Mesh(pawGeo, darkMat); pawBL.position.y = -0.4; legBL.add(pawBL);
             const pawBR = new THREE.Mesh(pawGeo, darkMat); pawBR.position.y = -0.4; legBR.add(pawBR);
 
-            // Tail
             const tail = new THREE.Mesh(new THREE.SphereGeometry(0.4), mat); tail.position.set(0, 1.2, -1.2); group.add(tail);
             
             group.scale.set(scale, scale, scale);
             return { mesh: group, mat: mat, parts: { body, headGroup, earL, earR, legFL, legFR, legBL, legBR } };
         }
 
-        // --- REALISTIC COW MODEL ---
+        // --- REALISTIC COW MODEL (With 2 Ears) ---
         function createSpaceCow() {
             const group = new THREE.Group();
-            // Rusty Brown Coat matching reference
             const coatColor = 0xA0522D; 
             const noseColor = 0xE6C2B0;
             const hoofColor = 0x1a1a1a;
@@ -618,67 +615,63 @@
             const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, roughness: 0.1 });
             const hornMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 });
 
-            // Main Body (Heavy)
             const bodyGeo = new THREE.BoxGeometry(1.4, 1.4, 2.2);
             const body = new THREE.Mesh(bodyGeo, mat);
             body.position.y = 1.6; body.castShadow = true;
             group.add(body);
 
-            // Neck Group (Pivot for grazing)
             const neckGroup = new THREE.Group();
             neckGroup.position.set(0, 2.0, 1.0); 
             group.add(neckGroup);
 
-            // Neck Mesh
             const neckGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
             const neck = new THREE.Mesh(neckGeo, mat);
             neck.position.set(0, -0.2, 0.2); neck.rotation.x = -0.2;
             neckGroup.add(neck);
 
-            // Head Group
             const headGroup = new THREE.Group();
             headGroup.position.set(0, 0, 0.6);
             neckGroup.add(headGroup);
 
-            // Skull
             const skullGeo = new THREE.BoxGeometry(0.9, 0.8, 0.7);
             const skull = new THREE.Mesh(skullGeo, mat);
             headGroup.add(skull);
 
-            // Snout (Pinkish)
             const snoutGeo = new THREE.BoxGeometry(0.92, 0.35, 0.35);
             const snout = new THREE.Mesh(snoutGeo, noseMat);
             snout.position.set(0, -0.22, 0.35);
             headGroup.add(snout);
 
-            // Nostrils
             const nostrilGeo = new THREE.BoxGeometry(0.1, 0.05, 0.02);
             const nostrilL = new THREE.Mesh(nostrilGeo, eyeMat); nostrilL.position.set(-0.25, -0.2, 0.53); headGroup.add(nostrilL);
             const nostrilR = new THREE.Mesh(nostrilGeo, eyeMat); nostrilR.position.set(0.25, -0.2, 0.53); headGroup.add(nostrilR);
 
-            // Eyes (Side of head)
             const eyeGeo = new THREE.SphereGeometry(0.12);
             const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.46, 0.1, 0.1); headGroup.add(eyeL);
             const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.46, 0.1, 0.1); headGroup.add(eyeR);
 
-            // Ears (Detailed)
-            const earGeo = new THREE.BoxGeometry(0.4, 0.25, 0.1);
-            earGeo.translate(0.2, 0, 0); 
-            const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.45, 0.2, -0.1); earL.rotation.set(0, 0.5, 2.5); headGroup.add(earL);
-            const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.45, 0.2, -0.1); earR.rotation.set(0, -0.5, -2.5); headGroup.add(earR);
+            // Distinct Ears (Pointy & Visible)
+            const earGeo = new THREE.ConeGeometry(0.15, 0.5, 4);
+            // Left Ear
+            const earL = new THREE.Mesh(earGeo, mat); 
+            earL.position.set(-0.6, 0.3, 0); 
+            earL.rotation.set(0, 0, 1.2); 
+            headGroup.add(earL);
+            // Right Ear
+            const earR = new THREE.Mesh(earGeo, mat); 
+            earR.position.set(0.6, 0.3, 0); 
+            earR.rotation.set(0, 0, -1.2); 
+            headGroup.add(earR);
 
-            // Hair Tuft
             const hairGeo = new THREE.DodecahedronGeometry(0.2);
             const hair = new THREE.Mesh(hairGeo, mat);
             hair.position.set(0, 0.45, 0.1); hair.scale.set(1, 0.5, 1);
             headGroup.add(hair);
 
-            // Tiny Horn Nubs
             const hornGeo = new THREE.ConeGeometry(0.04, 0.15, 8);
             const hornL = new THREE.Mesh(hornGeo, hornMat); hornL.position.set(-0.3, 0.45, -0.1); hornL.rotation.z = -0.2; headGroup.add(hornL);
             const hornR = new THREE.Mesh(hornGeo, hornMat); hornR.position.set(0.3, 0.45, -0.1); hornR.rotation.z = 0.2; headGroup.add(hornR);
 
-            // Legs
             function createLeg(x, z) {
                 const legGroup = new THREE.Group();
                 legGroup.position.set(x, 1.0, z);
@@ -693,14 +686,16 @@
             const legBL = createLeg(-0.6, -0.9); group.add(legBL);
             const legBR = createLeg(0.6, -0.9); group.add(legBR);
 
-            // Tail with tuft
             const tailGeo = new THREE.CylinderGeometry(0.08, 0.05, 1.2);
             const tail = new THREE.Mesh(tailGeo, mat);
             tail.position.set(0, 1.5, -1.1); tail.rotation.x = 0.5;
             const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.15), mat); tuft.position.y = -0.6; tail.add(tuft);
             group.add(tail);
 
-            // Scale (Bigger than bunnies)
+            const udder = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.7), new THREE.MeshStandardMaterial({color: 0xffaaaa}));
+            udder.position.set(0, 0.8, -0.2);
+            group.add(udder);
+
             group.scale.set(4.0, 4.0, 4.0);
 
             return { 
@@ -710,7 +705,6 @@
         }
 
         function spawnAnimals() {
-            // Spawn 30 Space Cows
             for(let i=0; i<30; i++) {
                 const cowObj = createSpaceCow();
                 const mesh = cowObj.mesh;
@@ -733,12 +727,12 @@
                         mesh: mesh, type: 'cow', parts: cowObj.parts,
                         dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
                         timer: 0, state: 'IDLE', animOffset: Math.random() * 100,
-                        nextStateTime: 100 + Math.random() * 200
+                        nextStateTime: 100 + Math.random() * 200,
+                        radius: 3.5 // Collision Radius
                     });
                 }
             }
 
-            // Spawn 40 Titan Bunnies
             for(let i=0; i<40; i++) {
                 const titanObj = createTitanBunny(3.5);
                 const mesh = titanObj.mesh;
@@ -751,7 +745,6 @@
                     const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                     const h = getMeshHeight(tx, tz);
                     const biome = getBiomeData(tx, tz, h);
-                    
                     if(biome.type === 'FOREST' && isPositionFree(tx, tz, 5.0)) { 
                         mesh.position.set(tx, 0, tz); 
                         spawned = true; 
@@ -762,7 +755,8 @@
                     animals.push({ 
                         mesh: mesh, type: 'titan', mat: titanObj.mat, parts: titanObj.parts,
                         dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
-                        timer: 0, state: 'WANDER', animOffset: Math.random() * 100
+                        timer: 0, state: 'WANDER', animOffset: Math.random() * 100,
+                        radius: 2.0
                     });
                 }
             }
@@ -933,14 +927,30 @@
             return false;
         }
 
+        // Check collision against specific entities (cows)
+        function checkEntityCollision(px, pz, ignoreMount) {
+            for(let i=0; i<animals.length; i++) {
+                const anim = animals[i];
+                if(anim === ignoreMount) continue;
+                if(anim.type === 'cow') {
+                    const dx = px - anim.mesh.position.x;
+                    const dz = pz - anim.mesh.position.z;
+                    // Combined radius (player ~0.5 + cow 3.5)
+                    if(dx*dx + dz*dz < 4.0 * 4.0) return true;
+                }
+            }
+            return false;
+        }
+
         // --- STATE ---
         const player = { 
             x: 0, z: 0, speed: 0, angle: 0, pitch: 0, y: 0, velocityY: 0, 
             isGrounded: true, stamina: 100, health: 100, isClimbing: false, 
             sticks: 0, hasHikingSticks: false,
-            knX: 0, knZ: 0 // Knockback vector
+            knX: 0, knZ: 0,
+            isRiding: false, mount: null
         };
-        const keys = { w:0, s:0, a:0, d:0, shift:0, space: 0 };
+        const keys = { w:0, s:0, a:0, d:0, shift:0, space: 0, e: 0 };
         let lastSpacePress = false; let animationTime = 0; 
         let hasPointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
         let isLocked = false; let isMouseDown = false;
@@ -958,6 +968,28 @@
                 if(player.sticks >= 2 && !player.hasHikingSticks) {
                     document.getElementById('crafting-menu').style.display = 'block';
                     document.exitPointerLock();
+                }
+            }
+            if(e.code === 'KeyE') {
+                // Try to mount or dismount
+                if(player.isRiding) {
+                    // Dismount handled in animate via space/toggle
+                    player.isRiding = false; 
+                    player.mount = null;
+                    player.y += 2.0; // Hop off
+                } else {
+                    // Find nearest cow
+                    let nearest = null; let minDst = 10.0;
+                    for(let i=0; i<animals.length; i++) {
+                        if(animals[i].type === 'cow') {
+                            const d = animals[i].mesh.position.distanceTo(new THREE.Vector3(player.x, player.y, player.z));
+                            if(d < 6.0 && d < minDst) { minDst = d; nearest = animals[i]; }
+                        }
+                    }
+                    if(nearest) {
+                        player.isRiding = true;
+                        player.mount = nearest;
+                    }
                 }
             }
         });
@@ -1034,46 +1066,79 @@
             const dmgOverlay = document.getElementById('damage-overlay');
             dmgOverlay.style.display = 'none';
 
+            // Interaction Prompt Logic
+            let canRide = false;
+            if(!player.isRiding) {
+                for(let i=0; i<animals.length; i++) {
+                    if(animals[i].type === 'cow') {
+                        const d = animals[i].mesh.position.distanceTo(new THREE.Vector3(player.x, player.y, player.z));
+                        if(d < 6.0) canRide = true;
+                    }
+                }
+            }
+            document.getElementById('interaction-prompt').style.display = canRide ? 'block' : 'none';
+
             for(let i=0; i<animals.length; i++) {
                 const anim = animals[i];
                 anim.timer++;
                 
                 // --- COW LOGIC ---
                 if(anim.type === 'cow') {
-                    if (anim.timer > anim.nextStateTime) {
-                        anim.timer = 0;
-                        anim.nextStateTime = 100 + Math.random() * 200;
-                        const rand = Math.random();
-                        if(rand < 0.4) anim.state = 'WALK';
-                        else if(rand < 0.7) anim.state = 'EAT';
-                        else anim.state = 'IDLE';
-                        if(anim.state === 'WALK') {
-                            anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    
+                    if (player.isRiding && player.mount === anim) {
+                        // PLAYER CONTROLLED
+                        // Position updated in main loop, just update visuals here
+                        const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
+                        anim.mesh.position.y = h;
+                        
+                        // If moving, animate legs
+                        if (keys.w || keys.s || keys.a || keys.d) {
+                            const t = time * 15; // Faster leg movement
+                            anim.parts.legFL.rotation.x = Math.sin(t) * 0.8;
+                            anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
+                            anim.parts.legBL.rotation.x = Math.cos(t) * 0.8;
+                            anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
+                        } else {
+                            anim.parts.legFL.rotation.x = 0; anim.parts.legFR.rotation.x = 0;
+                            anim.parts.legBL.rotation.x = 0; anim.parts.legBR.rotation.x = 0;
                         }
+                    } else {
+                        // AI CONTROLLED
+                        if (anim.timer > anim.nextStateTime) {
+                            anim.timer = 0;
+                            anim.nextStateTime = 100 + Math.random() * 200;
+                            const rand = Math.random();
+                            if(rand < 0.4) anim.state = 'WALK';
+                            else if(rand < 0.7) anim.state = 'EAT';
+                            else anim.state = 'IDLE';
+                            if(anim.state === 'WALK') {
+                                anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                            }
+                        }
+                        if (anim.state === 'WALK') {
+                            const normal = getSurfaceNormal(anim.mesh.position.x, anim.mesh.position.z);
+                            if (normal.y < 0.8) { anim.dir.x += normal.x * 0.2; anim.dir.z += normal.z * 0.2; anim.dir.normalize(); }
+                            anim.mesh.position.addScaledVector(anim.dir, 0.04);
+                            const lookTarget = anim.mesh.position.clone().add(anim.dir);
+                            anim.mesh.lookAt(lookTarget);
+                            anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0, 0.1);
+                            const t = time * 5 + anim.animOffset;
+                            anim.parts.legFL.rotation.x = Math.sin(t) * 0.5;
+                            anim.parts.legFR.rotation.x = Math.cos(t) * 0.5;
+                            anim.parts.legBL.rotation.x = Math.cos(t) * 0.5;
+                            anim.parts.legBR.rotation.x = Math.sin(t) * 0.5;
+                        } 
+                        else if (anim.state === 'EAT') {
+                            anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0.8, 0.1);
+                            anim.parts.neckGroup.rotation.y = Math.sin(time * 8) * 0.1;
+                        }
+                        else {
+                            anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0, 0.1);
+                            anim.parts.neckGroup.rotation.y = Math.sin(time) * 0.05;
+                        }
+                        const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
+                        anim.mesh.position.y = h;
                     }
-                    if (anim.state === 'WALK') {
-                        const normal = getSurfaceNormal(anim.mesh.position.x, anim.mesh.position.z);
-                        if (normal.y < 0.8) { anim.dir.x += normal.x * 0.2; anim.dir.z += normal.z * 0.2; anim.dir.normalize(); }
-                        anim.mesh.position.addScaledVector(anim.dir, 0.04);
-                        const lookTarget = anim.mesh.position.clone().add(anim.dir);
-                        anim.mesh.lookAt(lookTarget);
-                        anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0, 0.1);
-                        const t = time * 5 + anim.animOffset;
-                        anim.parts.legFL.rotation.x = Math.sin(t) * 0.5;
-                        anim.parts.legFR.rotation.x = Math.cos(t) * 0.5;
-                        anim.parts.legBL.rotation.x = Math.cos(t) * 0.5;
-                        anim.parts.legBR.rotation.x = Math.sin(t) * 0.5;
-                    } 
-                    else if (anim.state === 'EAT') {
-                        anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0.8, 0.1);
-                        anim.parts.neckGroup.rotation.y = Math.sin(time * 8) * 0.1;
-                    }
-                    else {
-                        anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0, 0.1);
-                        anim.parts.neckGroup.rotation.y = Math.sin(time) * 0.05;
-                    }
-                    const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
-                    anim.mesh.position.y = h;
                     continue; 
                 }
 
@@ -1089,23 +1154,18 @@
                     targetDir = new THREE.Vector3(player.x - currentPos.x, 0, player.z - currentPos.z).normalize();
                     anim.dir.lerp(targetDir, 0.1);
                     
-                    // Attack Animation: Lunge forward
                     anim.parts.body.rotation.x = -Math.PI / 4; 
                     
                     if (distToPlayer < 4.0) {
                         dmgOverlay.style.display = 'block';
-                        
-                        // High Damage
                         player.health -= 25; 
                         
-                        // KNOCKBACK PHYSICS
                         const knockForce = 1.8;
                         player.knX += targetDir.x * knockForce;
                         player.knZ += targetDir.z * knockForce;
                         player.velocityY = 0.5; 
                         player.isGrounded = false;
                         
-                        // Push bunny back slightly so it doesn't multi-hit instantly
                         anim.mesh.position.addScaledVector(targetDir, -5.0);
                     }
                 } else {
@@ -1205,7 +1265,7 @@
 
             let isImpossible = slopePercent > IMPOSSIBLE_SLOPE;
             
-            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible) {
+            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible && !player.isRiding) {
                 player.isClimbing = true;
             } else if (player.isClimbing && slopePercent < CLIMB_EXIT) {
                 player.isClimbing = false;
@@ -1213,7 +1273,17 @@
                 player.isClimbing = false;
             }
 
+            // SPACE COW JUMP / DISMOUNT
+            if (player.isRiding && keys.space) {
+                player.isRiding = false;
+                player.mount = null;
+                player.velocityY = 0.5;
+                player.isGrounded = false;
+                lastSpacePress = true;
+            }
+
             const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; 
+            const COW_SPEED = 0.6; // Very fast
             const GRAVITY = 0.02;
             const isMoving = (keys.w || keys.s || keys.a || keys.d);
             let isSprinting = false;
@@ -1225,7 +1295,7 @@
                     player.stamina += 0.15; 
                 }
                 if (player.stamina <= 0) { player.isClimbing = false; isImpossible = true; }
-            } else if (keys.shift && isMoving && player.stamina > 0 && !isImpossible) {
+            } else if (keys.shift && isMoving && player.stamina > 0 && !isImpossible && !player.isRiding) {
                 isSprinting = true; player.stamina -= 0.3;
             } else {
                 if (isMoving) player.stamina += 0.1; else player.stamina += 0.3;
@@ -1245,8 +1315,9 @@
             document.getElementById('biome-disp').innerText = biomeInfo.type;
 
             let dx = 0, dz = 0;
-            let maxSpeed = player.isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
+            let maxSpeed = player.isRiding ? COW_SPEED : (player.isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED));
             
+            // Input Vector
             if (isLocked || isMouseDown) {
                 const fwdX = Math.sin(player.angle); const fwdZ = Math.cos(player.angle);
                 const rightX = Math.cos(player.angle); const rightZ = -Math.sin(player.angle);
@@ -1270,83 +1341,126 @@
                 }
             }
             
-            if (isImpossible) {
+            if (isImpossible && !player.isRiding) {
                 dx += normal.x * 0.4; dz += normal.z * 0.4; 
             }
 
             // --- PHYSICS UPDATE ---
-            // Decay Knockback
             player.knX *= 0.9;
             player.knZ *= 0.9;
-            
-            // Apply Knockback + Input
             const finalDx = dx + player.knX;
             const finalDz = dz + player.knZ;
 
             player.speed = THREE.MathUtils.lerp(player.speed, Math.sqrt(finalDx*finalDx + finalDz*finalDz), 0.1);
             
-            const groundY = getMeshHeight(player.x, player.z);
-            player.isGrounded = (player.y <= groundY + 0.1);
-            
-            // FALL DAMAGE CHECK
-            if (!player.isGrounded && !player.isClimbing) {
-                player.velocityY -= GRAVITY;
-            } else {
-                if (player.velocityY < -0.6) { 
-                    const dmg = Math.abs(player.velocityY) * 40;
-                    player.health -= dmg;
-                    document.getElementById('damage-overlay').style.display = 'block';
+            if(player.isRiding && player.mount) {
+                // MOVE MOUNT
+                const mount = player.mount;
+                const mNorm = getSurfaceNormal(mount.mesh.position.x, mount.mesh.position.z);
+                
+                // Allow climb but slower
+                let mDx = finalDx; let mDz = finalDz;
+                if(mNorm.y < 0.6) { mDx *= 0.5; mDz *= 0.5; }
+
+                const newMX = mount.mesh.position.x + mDx;
+                const newMZ = mount.mesh.position.z + mDz;
+                
+                if (!checkTreeCollision(newMX, newMZ)) {
+                    mount.mesh.position.x = newMX;
+                    mount.mesh.position.z = newMZ;
                 }
                 
-                player.velocityY = Math.max(0, player.velocityY);
-                if (keys.space && !lastSpacePress && player.stamina > 10 && !isImpossible && !player.isClimbing) {
-                    player.velocityY = 0.4; player.isGrounded = false; player.stamina -= 10; lastSpacePress = true;
+                // Rotation matches movement
+                if (mDx !== 0 || mDz !== 0) {
+                    const lookT = mount.mesh.position.clone().add(new THREE.Vector3(mDx, 0, mDz));
+                    mount.mesh.lookAt(lookT);
                 }
-            }
-            
-            if (player.isClimbing) {
-                player.velocityY = 0;
-            }
 
-            player.y += player.velocityY;
-            
-            const newX = player.x + finalDx; 
-            const newZ = player.z + finalDz;
+                // Snap player to mount
+                player.x = mount.mesh.position.x;
+                player.z = mount.mesh.position.z;
+                
+                // Smooth Y for camera
+                const mountY = getMeshHeight(player.x, player.z);
+                const rideHeight = 3.5; // Sit on top
+                
+                const targetCamY = mountY + rideHeight;
+                smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2);
+                
+                // Don't draw player mesh when riding (optional, but looks better 1st person)
+                playerMesh.visible = false;
 
-            if (!checkTreeCollision(newX, newZ)) { player.x = newX; player.z = newZ; } 
-            else { if (!checkTreeCollision(player.x, newZ)) player.z = newZ; else if (!checkTreeCollision(newX, player.z)) player.x = newX; }
+            } else {
+                // NORMAL MOVEMENT
+                playerMesh.visible = true;
+                const groundY = getMeshHeight(player.x, player.z);
+                player.isGrounded = (player.y <= groundY + 0.1);
+                
+                if (!player.isGrounded && !player.isClimbing) {
+                    player.velocityY -= GRAVITY;
+                } else {
+                    if (player.velocityY < -0.6) { 
+                        const dmg = Math.abs(player.velocityY) * 40;
+                        player.health -= dmg;
+                        document.getElementById('damage-overlay').style.display = 'block';
+                    }
+                    
+                    player.velocityY = Math.max(0, player.velocityY);
+                    if (keys.space && !lastSpacePress && player.stamina > 10 && !isImpossible && !player.isClimbing) {
+                        player.velocityY = 0.4; player.isGrounded = false; player.stamina -= 10; lastSpacePress = true;
+                    }
+                }
+                
+                if (player.isClimbing) {
+                    player.velocityY = 0;
+                }
 
-            const terrainHeight = getMeshHeight(player.x, player.z);
-            
-            // CLIMBING SNAP & GRAVITY
-            if (player.isClimbing) {
-                player.y = terrainHeight;
-            }
-            
-            if (player.y < terrainHeight) {
-                player.y = terrainHeight;
-                player.velocityY = 0;
-                player.isGrounded = true;
+                player.y += player.velocityY;
+                
+                const newX = player.x + finalDx; 
+                const newZ = player.z + finalDz;
+
+                // Check Tree Collision & Cow Collision
+                if (!checkTreeCollision(newX, newZ) && !checkEntityCollision(newX, newZ, null)) { 
+                    player.x = newX; player.z = newZ; 
+                } else { 
+                    // Sliding collision
+                    if (!checkTreeCollision(player.x, newZ) && !checkEntityCollision(player.x, newZ, null)) player.z = newZ; 
+                    else if (!checkTreeCollision(newX, player.z) && !checkEntityCollision(newX, player.z, null)) player.x = newX; 
+                }
+
+                const terrainHeight = getMeshHeight(player.x, player.z);
+                
+                if (player.isClimbing) {
+                    player.y = terrainHeight;
+                }
+                
+                if (player.y < terrainHeight) {
+                    player.y = terrainHeight;
+                    player.velocityY = 0;
+                    player.isGrounded = true;
+                }
+                
+                const targetCamY = player.y + 1.7;
+                smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); 
             }
 
             if (isMoving && player.isGrounded) { animationTime += (isSprinting ? 0.3 : 0.15); }
             
-            const targetCamY = player.y + 1.7;
-            smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); 
-
+            // Camera & Player Mesh Transforms
             if (player.isClimbing && isMoving) {
                 const climbCycle = animationTime * 0.5;
                 charParts.leftArm.rotation.x = -2.0 + Math.sin(climbCycle) * 0.6;
                 charParts.rightArm.rotation.x = -2.0 + Math.cos(climbCycle) * 0.6;
-                
                 const bobOffset = Math.sin(animationTime * 0.8) * 0.05;
                 camera.position.set(player.x, smoothCamY + bobOffset, player.z);
-
+            } else if (player.isRiding) {
+                const bobOffset = Math.sin(animationTime * 1.5) * 0.1; // Bouncy ride
+                camera.position.set(player.x, smoothCamY + bobOffset, player.z);
             } else {
                 const bobOffset = Math.sin(animationTime) * 0.08;
                 const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
                 camera.position.set(player.x + swayOffset, smoothCamY + bobOffset, player.z);
-                
                 if (charParts.leftLeg) {
                     const walkCycle = Math.sin(animationTime);
                     charParts.leftLeg.rotation.x = walkCycle * 0.5; charParts.rightLeg.rotation.x = -walkCycle * 0.5;
