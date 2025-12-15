@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Grand Bosnia: Titan Update (Fixed)</title>
+    <title>Grand Bosnia: Titan Update</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -14,7 +14,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             width: 240px;
             z-index: 20;
-            display: none;
+            display: none; /* Hidden until game starts */
         }
         
         .stat-label { font-size: 10px; opacity: 0.7; letter-spacing: 2px; text-transform: uppercase; }
@@ -88,7 +88,7 @@
             position: absolute; bottom: 40px; right: 30px;
             display: flex; flex-direction: column; gap: 10px;
             z-index: 50;
-            display: none; 
+            display: none; /* Only for touch if needed, hiding by default for PC */
         }
         .look-btn {
             width: 60px; height: 60px;
@@ -228,11 +228,18 @@
     </div>
 
     <script>
-        window.restartGame = function() { location.reload(); };
+        // Global accessible functions for UI buttons
+        window.restartGame = function() {
+            location.reload();
+        };
+        // Will be overwritten by module
         window.initiateGame = function() {
             document.getElementById('loading').style.display = 'block';
             document.querySelector('#start-screen .btn').style.display = 'none';
-            setTimeout(() => { if(window.startGameLogic) window.startGameLogic(); }, 100);
+            // Defer execution to allow UI to update before freeze
+            setTimeout(() => {
+                if(window.startGameLogic) window.startGameLogic();
+            }, 100);
         };
     </script>
 
@@ -249,12 +256,14 @@
             return false;
         };
 
+        // --- CONFIG ---
         const WORLD_SIZE = 30000; 
         const RES = 150; 
         const SEGMENT_SIZE = WORLD_SIZE / RES;
         const SEED_X = Math.random() * 10000;
         const SEED_Z = Math.random() * 10000;
         
+        // --- SCENE & ATMOSPHERE ---
         let gameActive = false;
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
@@ -273,24 +282,33 @@
         renderer.toneMappingExposure = 1.3; 
         document.body.appendChild(renderer.domElement);
 
+        // --- PARTICLES ---
         const particlesGeo = new THREE.BufferGeometry();
         const particlesCount = 4000; 
         const pArray = new Float32Array(particlesCount * 3);
-        for(let i=0; i<particlesCount*3; i++) { pArray[i] = (Math.random() - 0.5) * 200; }
+        for(let i=0; i<particlesCount*3; i++) {
+            pArray[i] = (Math.random() - 0.5) * 200; 
+        }
         particlesGeo.setAttribute('position', new THREE.BufferAttribute(pArray, 3));
-        const particlesMat = new THREE.PointsMaterial({ size: 0.15, color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.15, color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending
+        });
         const particles = new THREE.Points(particlesGeo, particlesMat);
         scene.add(particles);
 
+        // --- STARS ---
         const starGeo = new THREE.BufferGeometry();
         const starCount = 6000;
         const starArr = new Float32Array(starCount * 3);
-        for(let i=0; i<starCount*3; i++) { starArr[i] = (Math.random() - 0.5) * 12000; }
+        for(let i=0; i<starCount*3; i++) {
+            starArr[i] = (Math.random() - 0.5) * 12000;
+        }
         starGeo.setAttribute('position', new THREE.BufferAttribute(starArr, 3));
         const starMat = new THREE.PointsMaterial({ size: 2.0, color: 0xffffff, sizeAttenuation: false, transparent: true, opacity: 0 });
         const stars = new THREE.Points(starGeo, starMat);
         scene.add(stars);
 
+        // --- POST PROCESSING ---
         const renderScene = new RenderPass(scene, camera);
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
         bloomPass.threshold = 0.6; bloomPass.strength = 0.4; bloomPass.radius = 0.5;
@@ -298,6 +316,7 @@
         composer.addPass(renderScene);
         composer.addPass(bloomPass);
 
+        // --- LIGHTING ---
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.25); 
         scene.add(hemiLight);
         
@@ -313,7 +332,7 @@
         const sunSphere = new THREE.Mesh(new THREE.SphereGeometry(400, 16, 16), new THREE.MeshBasicMaterial({color: 0xffaa33}));
         scene.add(sunSphere);
 
-        // NOISE & MATH
+        // --- NOISE ---
         const p = new Uint8Array(512);
         const perm = new Uint8Array(512);
         for(let i=0; i<256; i++) p[i] = i;
@@ -338,6 +357,7 @@
                                 lerp(u, grad(perm[A + 1], x, y - 1), grad(perm[B + 1], x - 1, y - 1)));
         }
 
+        // --- TERRAIN ---
         const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, RES, RES);
         geo.rotateX(-Math.PI / 2);
         const count = geo.attributes.position.count;
@@ -349,7 +369,9 @@
         function getBiomeData(x, z, height) {
             const moisture = noise(x * 0.0003, z * 0.0003); 
             if (height < 300) {
-                if (moisture > 0.3) return { type: 'FOREST', r: 0.05, g: 0.25, b: 0.05 }; 
+                if (moisture > 0.3) {
+                    return { type: 'FOREST', r: 0.05, g: 0.25, b: 0.05 }; 
+                }
                 return { type: 'GRASSLAND', r: 0.25, g: 0.65, b: 0.15 }; 
             } else if (height < 2500) {
                 if (moisture > 0.4) return { type: 'HIGHLANDS', r: 0.35, g: 0.45, b: 0.25 }; 
@@ -362,8 +384,10 @@
         }
 
         function getRawHeight(x, z) {
-            const nx = x + SEED_X; const nz = z + SEED_Z;
+            const nx = x + SEED_X;
+            const nz = z + SEED_Z;
             let biome = noise(nx * 0.00015, nz * 0.00015);
+            
             let height = noise(nx * 0.001, nz * 0.001) * 150;
             height += noise(nx * 0.005, nz * 0.005) * 30;
             
@@ -376,16 +400,21 @@
                 let blend = (biome + 0.1) * 3; if (blend > 1) blend = 1;
                 height = lerp(blend, height, mtnHeight);
             }
+            
             if (biome > 0.4) {
                 let titanBase = (biome - 0.4) * 2.0; if (titanBase > 1) titanBase = 1;
                 let titanHeight = Math.pow(Math.abs(noise(nx * 0.0002, nz * 0.0002)), 2.0) * 25000; 
                 titanHeight += Math.abs(noise(nx * 0.001, nz * 0.001)) * 2000;
                 height = lerp(titanBase, height, titanHeight);
             }
+            
             const dist = Math.sqrt(x*x + z*z);
             let sm = 1.0;
-            if (dist < 400) sm = 0.0; else if (dist < 1000) sm = (dist - 400) / 600;
-            height *= sm; if(height < -20) height = -20;
+            if (dist < 400) sm = 0.0; 
+            else if (dist < 1000) sm = (dist - 400) / 600;
+            
+            height *= sm; 
+            if(height < -20) height = -20;
             return height;
         }
 
@@ -398,8 +427,10 @@
             const z1 = z0 + SEGMENT_SIZE;
             const u = (x - x0) / SEGMENT_SIZE;
             const v = (z - z0) / SEGMENT_SIZE;
-            const h00 = getRawHeight(x0, z0); const h10 = getRawHeight(x1, z0);
-            const h01 = getRawHeight(x0, z1); const h11 = getRawHeight(x1, z1);
+            const h00 = getRawHeight(x0, z0);
+            const h10 = getRawHeight(x1, z0);
+            const h01 = getRawHeight(x0, z1);
+            const h11 = getRawHeight(x1, z1);
             if (u + v < 1) return h00 + (h10 - h00) * u + (h01 - h00) * v;
             else return h11 + (h01 - h11) * (1 - u) + (h10 - h11) * (1 - v);
         }
@@ -407,18 +438,27 @@
         const vecA = new THREE.Vector3(), vecB = new THREE.Vector3(), vecC = new THREE.Vector3();
         const sub1 = new THREE.Vector3(), sub2 = new THREE.Vector3();
         function getSurfaceNormal(x, z) {
-            const eps = 4.0; 
-            const h0 = getMeshHeight(x, z); const h1 = getMeshHeight(x + eps, z); const h2 = getMeshHeight(x, z + eps);
-            vecA.set(x, h0, z); vecB.set(x + eps, h1, z); vecC.set(x, h2, z + eps);
-            sub1.subVectors(vecB, vecA); sub2.subVectors(vecC, vecA);
+            const eps = 2.0;
+            const h0 = getMeshHeight(x, z);
+            const h1 = getMeshHeight(x + eps, z);
+            const h2 = getMeshHeight(x, z + eps);
+            vecA.set(x, h0, z);
+            vecB.set(x + eps, h1, z);
+            vecC.set(x, h2, z + eps);
+            sub1.subVectors(vecB, vecA);
+            sub2.subVectors(vecC, vecA);
             sub1.cross(sub2).normalize();
             if (sub1.y < 0) sub1.negate();
             return sub1.clone();
         }
 
         function generateTerrain() {
-            const posAttr = geo.attributes.position; const colAttr = geo.attributes.color;
-            let vIdx = 0; const startX = -(WORLD_SIZE/2); const startZ = -(WORLD_SIZE/2);
+            const posAttr = geo.attributes.position;
+            const colAttr = geo.attributes.color;
+            let vIdx = 0;
+            const startX = -(WORLD_SIZE/2);
+            const startZ = -(WORLD_SIZE/2);
+
             for (let i = 0; i <= RES; i++) { 
                 const worldZ = startZ + (i * SEGMENT_SIZE);
                 for (let j = 0; j <= RES; j++) { 
@@ -434,10 +474,12 @@
                 }
             }
             geo.computeVertexNormals();
-            posAttr.needsUpdate = true; colAttr.needsUpdate = true;
+            posAttr.needsUpdate = true;
+            colAttr.needsUpdate = true;
             scene.add(terrain);
         }
 
+        // --- PLAYER BODY ---
         const charParts = {};
         function createHuman() {
             const group = new THREE.Group();
@@ -455,6 +497,10 @@
             leftLeg.position.set(-0.15, 0.5, bodyOffsetZ); leftLeg.castShadow = true; group.add(leftLeg); charParts.leftLeg = leftLeg;
             const rightLeg = new THREE.Mesh(legGeo, suitMat); 
             rightLeg.position.set(0.15, 0.5, bodyOffsetZ); rightLeg.castShadow = true; group.add(rightLeg); charParts.rightLeg = rightLeg;
+
+            const bootGeo = new THREE.BoxGeometry(0.18, 0.15, 0.3);
+            const lBoot = new THREE.Mesh(bootGeo, padMat); lBoot.position.set(0, -0.35, -0.05); leftLeg.add(lBoot);
+            const rBoot = new THREE.Mesh(bootGeo, padMat); rBoot.position.set(0, -0.35, -0.05); rightLeg.add(rBoot);
             
             const armGeo = new THREE.CapsuleGeometry(0.09, 0.5, 4, 8);
             const leftArm = new THREE.Mesh(armGeo, suitMat);
@@ -462,20 +508,28 @@
             const rightArm = new THREE.Mesh(armGeo, suitMat);
             rightArm.position.set(0.35, 1.3, bodyOffsetZ); rightArm.rotation.z = -0.1; rightArm.castShadow = true; group.add(rightArm); charParts.rightArm = rightArm;
 
+            const gloveGeo = new THREE.BoxGeometry(0.12, 0.15, 0.12);
+            const lGlove = new THREE.Mesh(gloveGeo, padMat); lGlove.position.set(0, -0.35, 0); leftArm.add(lGlove);
+            const rGlove = new THREE.Mesh(gloveGeo, padMat); rGlove.position.set(0, -0.35, 0); rightArm.add(rGlove);
+
             scene.add(group);
             return group;
         }
         const playerMesh = createHuman();
 
+        // --- COLLECTIBLES (STICKS & GRASS) ---
         const sticks = [];
         const stickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5);
         const stickMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
-        const grassBundleGeo = new THREE.ConeGeometry(0.2, 0.6, 6); grassBundleGeo.translate(0, 0.3, 0); 
+        const grassBundleGeo = new THREE.ConeGeometry(0.2, 0.6, 6);
+        grassBundleGeo.translate(0, 0.3, 0); 
         const grassBundleMat = new THREE.MeshStandardMaterial({ color: 0x55ff55 });
 
+        // Define functions globally for HTML access
         window.craftHikingSticks = function() {
             if (player.sticks >= 2) {
-                player.sticks -= 2; player.hasHikingSticks = true;
+                player.sticks -= 2;
+                player.hasHikingSticks = true;
                 document.getElementById('stick-count').innerText = player.sticks + "/2";
                 document.getElementById('gear-disp').innerText = "HIKING STICKS";
                 document.getElementById('gear-disp').className = "gear-active";
@@ -491,15 +545,21 @@
         };
 
         function spawnCollectibles() {
-            for(let i=0; i<300; i++) spawnSingleItem('stick');
-            for(let i=0; i<10000; i++) spawnSingleItem('grass');
+            for(let i=0; i<300; i++) {
+                spawnSingleItem('stick');
+            }
+            for(let i=0; i<10000; i++) {
+                spawnSingleItem('grass');
+            }
         }
 
         function spawnSingleItem(type) {
-            let spawned = false; let attempts = 0;
+            let spawned = false;
+            let attempts = 0;
             while(!spawned && attempts < 10) {
                 attempts++;
-                const angle = Math.random() * Math.PI * 2; const r = 200 + Math.random() * 10000; 
+                const angle = Math.random() * Math.PI * 2;
+                const r = 200 + Math.random() * 10000; 
                 const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                 const h = getMeshHeight(tx, tz);
                 const biome = getBiomeData(tx, tz, h);
@@ -507,17 +567,23 @@
                     const geo = (type === 'stick') ? stickGeo : grassBundleGeo;
                     const mat = (type === 'stick') ? stickMat : grassBundleMat;
                     const mesh = new THREE.Mesh(geo, mat);
+                    
                     if(type === 'stick') {
                         mesh.position.set(tx, h + 0.1, tz);
-                        mesh.rotation.z = Math.PI / 2; mesh.rotation.y = Math.random() * Math.PI;
-                    } else mesh.position.set(tx, h, tz);
-                    mesh.castShadow = true; scene.add(mesh);
+                        mesh.rotation.z = Math.PI / 2;
+                        mesh.rotation.y = Math.random() * Math.PI;
+                    } else {
+                        mesh.position.set(tx, h, tz);
+                    }
+                    mesh.castShadow = true;
+                    scene.add(mesh);
                     sticks.push({ mesh: mesh, active: true, type: type });
                     spawned = true;
                 }
             }
         }
 
+        // --- ANIMALS ---
         const animals = [];
         
         function createTitanBunny(scale) {
@@ -525,12 +591,30 @@
             const mat = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.8 });
             const darkMat = new THREE.MeshStandardMaterial({ color: 0x557799, roughness: 0.9 });
             const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000 });
+            const toothMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
             const body = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0, 1), mat);
             body.scale.set(1.1, 0.9, 1.3); body.position.y = 1.2; body.castShadow = true; group.add(body);
             
-            const headGroup = new THREE.Group(); headGroup.position.set(0, 1.9, 0.8); group.add(headGroup);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.0), mat); headGroup.add(head);
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 1.9, 0.8);
+            group.add(headGroup);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.0), mat);
+            headGroup.add(head);
+
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.3), darkMat);
+            snout.position.set(0, -0.1, 0.6); headGroup.add(snout);
+
+            const toothL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.05), toothMat);
+            toothL.position.set(-0.1, -0.35, 0.65); headGroup.add(toothL);
+            const toothR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.05), toothMat);
+            toothR.position.set(0.1, -0.35, 0.65); headGroup.add(toothR);
+
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat);
+            eyeL.position.set(-0.3, 0.1, 0.5); headGroup.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat);
+            eyeR.position.set(0.3, 0.1, 0.5); headGroup.add(eyeR);
 
             const earGeo = new THREE.CapsuleGeometry(0.12, 1.0, 4, 8);
             const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.3, 0.7, 0); earL.rotation.z = 0.2; headGroup.add(earL);
@@ -542,45 +626,115 @@
             const legBL = new THREE.Mesh(legGeo, mat); legBL.position.set(-0.6, 0.4, -0.6); group.add(legBL);
             const legBR = new THREE.Mesh(legGeo, mat); legBR.position.set(0.6, 0.4, -0.6); group.add(legBR);
             
+            const pawGeo = new THREE.SphereGeometry(0.2);
+            const pawFL = new THREE.Mesh(pawGeo, darkMat); pawFL.position.y = -0.4; legFL.add(pawFL);
+            const pawFR = new THREE.Mesh(pawGeo, darkMat); pawFR.position.y = -0.4; legFR.add(pawFR);
+            const pawBL = new THREE.Mesh(pawGeo, darkMat); pawBL.position.y = -0.4; legBL.add(pawBL);
+            const pawBR = new THREE.Mesh(pawGeo, darkMat); pawBR.position.y = -0.4; legBR.add(pawBR);
+
+            const tail = new THREE.Mesh(new THREE.SphereGeometry(0.4), mat); tail.position.set(0, 1.2, -1.2); group.add(tail);
+            
             group.scale.set(scale, scale, scale);
             return { mesh: group, mat: mat, parts: { body, headGroup, earL, earR, legFL, legFR, legBL, legBR } };
         }
 
         function createSpaceCow() {
             const group = new THREE.Group();
-            const coatColor = 0xA0522D; const noseColor = 0xE6C2B0;
+            const coatColor = 0xA0522D; 
+            const noseColor = 0xE6C2B0;
+            const hoofColor = 0x1a1a1a;
+            const eyeColor = 0x000000;
+            
             const mat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.9, flatShading: true });
             const noseMat = new THREE.MeshStandardMaterial({ color: noseColor, roughness: 0.5 });
-            const hoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const hoofMat = new THREE.MeshStandardMaterial({ color: hoofColor, roughness: 0.9 });
+            const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, roughness: 0.1 });
             const hornMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 });
 
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 2.2), mat);
-            body.position.y = 1.6; body.castShadow = true; group.add(body);
+            const bodyGeo = new THREE.BoxGeometry(1.4, 1.4, 2.2);
+            const body = new THREE.Mesh(bodyGeo, mat);
+            body.position.y = 1.6; body.castShadow = true;
+            group.add(body);
 
-            const neckGroup = new THREE.Group(); neckGroup.position.set(0, 2.0, -1.0); group.add(neckGroup);
-            const neck = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), mat);
-            neck.position.set(0, -0.2, -0.2); neck.rotation.x = 0.2; neckGroup.add(neck);
+            const neckGroup = new THREE.Group();
+            neckGroup.position.set(0, 2.0, -1.0); 
+            group.add(neckGroup);
 
-            const headGroup = new THREE.Group(); headGroup.position.set(0, 0, -0.6); neckGroup.add(headGroup);
-            const skull = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.7), mat); headGroup.add(skull);
-            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.35, 0.35), noseMat);
-            snout.position.set(0, -0.22, -0.35); headGroup.add(snout);
+            const neckGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const neck = new THREE.Mesh(neckGeo, mat);
+            neck.position.set(0, -0.2, -0.2); neck.rotation.x = 0.2;
+            neckGroup.add(neck);
+
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 0, -0.6);
+            neckGroup.add(headGroup);
+
+            const skullGeo = new THREE.BoxGeometry(0.9, 0.8, 0.7);
+            const skull = new THREE.Mesh(skullGeo, mat);
+            headGroup.add(skull);
+
+            const snoutGeo = new THREE.BoxGeometry(0.92, 0.35, 0.35);
+            const snout = new THREE.Mesh(snoutGeo, noseMat);
+            snout.position.set(0, -0.22, -0.35);
+            headGroup.add(snout);
+
+            const nostrilGeo = new THREE.BoxGeometry(0.1, 0.05, 0.02);
+            const nostrilL = new THREE.Mesh(nostrilGeo, eyeMat); nostrilL.position.set(-0.25, -0.2, -0.53); headGroup.add(nostrilL);
+            const nostrilR = new THREE.Mesh(nostrilGeo, eyeMat); nostrilR.position.set(0.25, -0.2, -0.53); headGroup.add(nostrilR);
+
+            const eyeGeo = new THREE.SphereGeometry(0.12);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.46, 0.1, -0.1); headGroup.add(eyeL);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.46, 0.1, -0.1); headGroup.add(eyeR);
+
+            const earGeo = new THREE.ConeGeometry(0.15, 0.5, 4);
+            const earL = new THREE.Mesh(earGeo, mat); 
+            earL.position.set(-0.6, 0.3, 0); 
+            earL.rotation.set(0, 0, 1.2); 
+            headGroup.add(earL);
+            const earR = new THREE.Mesh(earGeo, mat); 
+            earR.position.set(0.6, 0.3, 0); 
+            earR.rotation.set(0, 0, -1.2); 
+            headGroup.add(earR);
+
+            const hairGeo = new THREE.DodecahedronGeometry(0.2);
+            const hair = new THREE.Mesh(hairGeo, mat);
+            hair.position.set(0, 0.45, -0.1); hair.scale.set(1, 0.5, 1);
+            headGroup.add(hair);
+
+            const hornGeo = new THREE.ConeGeometry(0.04, 0.15, 8);
+            const hornL = new THREE.Mesh(hornGeo, hornMat); hornL.position.set(-0.3, 0.45, 0.1); hornL.rotation.z = -0.2; headGroup.add(hornL);
+            const hornR = new THREE.Mesh(hornGeo, hornMat); hornR.position.set(0.3, 0.45, 0.1); hornR.rotation.z = 0.2; headGroup.add(hornR);
 
             function createLeg(x, z) {
-                const legGroup = new THREE.Group(); legGroup.position.set(x, 1.0, z);
+                const legGroup = new THREE.Group();
+                legGroup.position.set(x, 1.0, z);
                 const upper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.4), mat); upper.position.y = -0.35; legGroup.add(upper);
                 const lower = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), mat); lower.position.y = -1.0; legGroup.add(lower);
                 const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.15, 0.32), hoofMat); hoof.position.y = -1.35; legGroup.add(hoof);
                 return legGroup;
             }
-            const legFL = createLeg(-0.6, -0.9); group.add(legFL); const legFR = createLeg(0.6, -0.9); group.add(legFR);
-            const legBL = createLeg(-0.6, 0.9); group.add(legBL); const legBR = createLeg(0.6, 0.9); group.add(legBR);
 
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 1.2), mat);
-            tail.position.set(0, 1.5, 1.1); tail.rotation.x = -0.5; group.add(tail);
+            const legFL = createLeg(-0.6, -0.9); group.add(legFL);
+            const legFR = createLeg(0.6, -0.9); group.add(legFR);
+            const legBL = createLeg(-0.6, 0.9); group.add(legBL);
+            const legBR = createLeg(0.6, 0.9); group.add(legBR);
+
+            const tailGeo = new THREE.CylinderGeometry(0.08, 0.05, 1.2);
+            const tail = new THREE.Mesh(tailGeo, mat);
+            tail.position.set(0, 1.5, 1.1); tail.rotation.x = -0.5;
+            const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.15), mat); tuft.position.y = -0.6; tail.add(tuft);
+            group.add(tail);
+
+            const udder = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.7), new THREE.MeshStandardMaterial({color: 0xffaaaa}));
+            udder.position.set(0, 0.8, 0.2);
+            group.add(udder);
 
             group.scale.set(4.0, 4.0, 4.0);
-            return { mesh: group, parts: { neckGroup, headGroup, legFL, legFR, legBL, legBR, tail } };
+
+            return { 
+                mesh: group, 
+                parts: { neckGroup, headGroup, legFL, legFR, legBL, legBR, tail } 
+            };
         }
 
         function createGiantAnt() {
@@ -589,19 +743,36 @@
             const redMat = new THREE.MeshStandardMaterial({ color: 0x550000, roughness: 0.6 });
 
             const abdomen = new THREE.Mesh(new THREE.SphereGeometry(15, 16, 16), darkMat);
-            abdomen.scale.set(1, 1.2, 1.8); abdomen.position.set(0, 15, 25); group.add(abdomen);
+            abdomen.scale.set(1, 1.2, 1.8);
+            abdomen.position.set(0, 15, 25);
+            group.add(abdomen);
 
             const thorax = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16), redMat);
-            thorax.scale.set(1, 1, 1.4); thorax.position.set(0, 12, 0); group.add(thorax);
+            thorax.scale.set(1, 1, 1.4);
+            thorax.position.set(0, 12, 0);
+            group.add(thorax);
 
             const head = new THREE.Mesh(new THREE.SphereGeometry(8, 16, 16), darkMat);
-            head.position.set(0, 14, -18); group.add(head);
+            head.position.set(0, 14, -18);
+            group.add(head);
+
+            const mandL = new THREE.Mesh(new THREE.ConeGeometry(2, 8, 8), redMat);
+            mandL.position.set(-3, 12, -25); mandL.rotation.x = Math.PI/2; mandL.rotation.z = 0.5;
+            group.add(mandL);
+            const mandR = new THREE.Mesh(new THREE.ConeGeometry(2, 8, 8), redMat);
+            mandR.position.set(3, 12, -25); mandR.rotation.x = Math.PI/2; mandR.rotation.z = -0.5;
+            group.add(mandR);
 
             const legGeo = new THREE.CylinderGeometry(1.5, 1, 30);
             for(let i=0; i<3; i++) {
                 const zPos = -5 + i*8;
-                const lLeg = new THREE.Mesh(legGeo, darkMat); lLeg.position.set(-15, 8, zPos); lLeg.rotation.z = 1.0; group.add(lLeg);
-                const rLeg = new THREE.Mesh(legGeo, darkMat); rLeg.position.set(15, 8, zPos); rLeg.rotation.z = -1.0; group.add(rLeg);
+                const lLeg = new THREE.Mesh(legGeo, darkMat);
+                lLeg.position.set(-15, 8, zPos); lLeg.rotation.z = 1.0; 
+                group.add(lLeg);
+                
+                const rLeg = new THREE.Mesh(legGeo, darkMat);
+                rLeg.position.set(15, 8, zPos); rLeg.rotation.z = -1.0; 
+                group.add(rLeg);
             }
             group.scale.set(20.0, 20.0, 20.0);
             return { mesh: group };
@@ -610,61 +781,83 @@
         function spawnAnimals() {
             for(let i=0; i<30; i++) {
                 const cowObj = createSpaceCow();
-                let spawned = false, attempts = 0;
+                const mesh = cowObj.mesh;
+                let spawned = false;
+                let attempts = 0;
                 while(!spawned && attempts < 100) {
                     attempts++;
-                    const a = Math.random()*Math.PI*2; const r = 500+Math.random()*12000; 
-                    const tx = Math.cos(a)*r; const tz = Math.sin(a)*r;
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 500 + Math.random() * 12000; 
+                    const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                     const h = getMeshHeight(tx, tz);
                     if(h > -5 && isPositionFree(tx, tz, 5.0)) { 
-                        cowObj.mesh.position.set(tx, h, tz); spawned = true; 
+                        mesh.position.set(tx, 0, tz); 
+                        spawned = true; 
                     }
                 }
                 if(spawned) {
-                    scene.add(cowObj.mesh);
+                    scene.add(mesh);
                     animals.push({ 
-                        mesh: cowObj.mesh, type: 'cow', parts: cowObj.parts,
+                        mesh: mesh, type: 'cow', parts: cowObj.parts,
                         dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
                         timer: 0, state: 'IDLE', animOffset: Math.random() * 100,
-                        nextStateTime: 100 + Math.random() * 200, radius: 3.5, tamed: false, isFrozen: false
+                        nextStateTime: 100 + Math.random() * 200,
+                        radius: 3.5,
+                        tamed: false,
+                        isFrozen: false
                     });
                 }
             }
 
             for(let i=0; i<40; i++) {
                 const titanObj = createTitanBunny(3.5);
-                let spawned = false, attempts = 0;
+                const mesh = titanObj.mesh;
+                let spawned = false;
+                let attempts = 0;
                 while(!spawned && attempts < 200) {
                     attempts++;
-                    const a = Math.random()*Math.PI*2; const r = 500+Math.random()*14000; 
-                    const tx = Math.cos(a)*r; const tz = Math.sin(a)*r;
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 500 + Math.random() * 14000; 
+                    const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                     const h = getMeshHeight(tx, tz);
                     if(h > -5 && isPositionFree(tx, tz, 5.0)) { 
-                        titanObj.mesh.position.set(tx, 0, tz); spawned = true; 
+                        mesh.position.set(tx, 0, tz); 
+                        spawned = true; 
                     }
                 }
                 if(spawned) {
-                    scene.add(titanObj.mesh);
+                    scene.add(mesh);
                     animals.push({ 
-                        mesh: titanObj.mesh, type: 'titan', mat: titanObj.mat, parts: titanObj.parts,
+                        mesh: mesh, type: 'titan', mat: titanObj.mat, parts: titanObj.parts,
                         dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
-                        timer: 0, state: 'WANDER', animOffset: Math.random() * 100, radius: 2.0
+                        timer: 0, state: 'WANDER', animOffset: Math.random() * 100,
+                        radius: 2.0
                     });
                 }
             }
 
             const antObj = createGiantAnt();
+            const antMesh = antObj.mesh;
             let antSpawned = false;
             while(!antSpawned) {
-                const a = Math.random()*Math.PI*2; const r = 2000+Math.random()*5000;
-                const tx = Math.cos(a)*r; const tz = Math.sin(a)*r;
+                const angle = Math.random() * Math.PI * 2;
+                const r = 2000 + Math.random() * 5000;
+                const tx = Math.cos(angle)*r; const tz = Math.sin(angle)*r;
                 const h = getMeshHeight(tx, tz);
-                if(h > 100) { antObj.mesh.position.set(tx, h, tz); antSpawned = true; }
+                if(h > 100) {
+                     antMesh.position.set(tx, h, tz);
+                     antSpawned = true;
+                }
             }
-            scene.add(antObj.mesh);
-            animals.push({ mesh: antObj.mesh, type: 'ant', dir: new THREE.Vector3(1,0,0), timer: 0, state: 'MARCH', radius: 400.0 });
+            scene.add(antMesh);
+            animals.push({
+                mesh: antMesh, type: 'ant',
+                dir: new THREE.Vector3(1,0,0),
+                timer: 0, state: 'MARCH', radius: 400.0 
+            });
         }
 
+        // --- VEGETATION ---
         const treeCount = 28000; const bushCount = 45000; 
         const foliageGeo = new THREE.ConeGeometry(9, 16, 6); foliageGeo.translate(0, 16, 0);
         const trunkGeo = new THREE.CylinderGeometry(1.0, 1.4, 16, 5); trunkGeo.translate(0, 8, 0);
@@ -709,9 +902,11 @@
 
         const grassCount = 450000; 
         const grassMesh = new THREE.InstancedMesh(grassGeo, grassMaterial, grassCount);
+
         const rockGeo = new THREE.DodecahedronGeometry(3, 0); 
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 });
         const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 10000);
+
         const bushGeo = new THREE.DodecahedronGeometry(1.5, 0); bushGeo.translate(0, 1.0, 0);
         const bushMat = new THREE.MeshStandardMaterial({ color: 0x226622, roughness: 1.0, flatShading: true });
         const bushMesh = new THREE.InstancedMesh(bushGeo, bushMat, bushCount);
@@ -739,20 +934,30 @@
         }
 
         function plantVegetation() {
-            let tIdx = 0, attempts = 0;
-            while(tIdx < treeCount && attempts < 150000) {
+            let tIdx = 0; 
+            let attempts = 0;
+            const treeLoopMax = 150000; // Reduced for safety
+
+            while(tIdx < treeCount && attempts < treeLoopMax) {
                 attempts++;
-                const a = Math.random() * Math.PI * 2; const r = 100 + Math.random() * 14500; 
-                const tx = Math.cos(a) * r; const tz = Math.sin(a) * r;
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 100 + Math.random() * 14500; 
+                const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
                 const y = getMeshHeight(tx, tz);
                 const normal = getSurfaceNormal(tx, tz);
+                const isFlat = normal.y > 0.75;
                 const biome = getBiomeData(tx, tz, y);
-                if(y > -10 && isPositionFree(tx, tz, 6.0) && normal.y > 0.75) {
-                    let treeChance = (biome.type === 'FOREST') ? 0.95 : (biome.type === 'GRASSLAND' ? 0.002 : 0);
+                
+                if(y > -10 && isPositionFree(tx, tz, 6.0) && isFlat) {
+                    let treeChance = 0;
+                    if(biome.type === 'FOREST') treeChance = 0.95; 
+                    else if (biome.type === 'GRASSLAND') treeChance = 0.002;
+
                     if (Math.random() < treeChance) {
                         dummy.position.set(tx, y, tz);
                         const s = 0.8 + Math.random() * 1.5; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(0, Math.random()*3, 0); dummy.updateMatrix();
+                        dummy.rotation.set(0, Math.random()*3, 0);
+                        dummy.updateMatrix();
                         foliageMesh.setMatrixAt(tIdx, dummy.matrix); trunkMesh.setMatrixAt(tIdx, dummy.matrix);
                         addToGrid(tx, tz, 2.5); tIdx++;
                     } 
@@ -761,19 +966,26 @@
             foliageMesh.count = tIdx; trunkMesh.count = tIdx;
             scene.add(foliageMesh); scene.add(trunkMesh);
 
-            let mIdx = 0; attempts = 0;
-            while(mIdx < 8000 && attempts < 50000) {
+            let mIdx = 0; 
+            attempts = 0;
+            const mushLoopMax = 50000;
+            while(mIdx < 8000 && attempts < mushLoopMax) {
                 attempts++;
-                const a = Math.random() * Math.PI * 2; const r = 100 + Math.random() * 14500; 
-                const tx = Math.cos(a) * r; const tz = Math.sin(a) * r;
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 100 + Math.random() * 14500; 
+                const tx = Math.cos(angle) * r; const tz = Math.sin(angle) * r;
                 const y = getMeshHeight(tx, tz);
                 const biome = getBiomeData(tx, tz, y);
-                if(y > -10 && biome.type === 'FOREST' && isPositionFree(tx, tz, 4.0)) { 
-                    dummy.position.set(tx, y, tz);
-                    const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
-                    dummy.rotation.set(0, Math.random()*3, 0); dummy.updateMatrix();
-                    mushStemMesh.setMatrixAt(mIdx, dummy.matrix); mushCapMesh.setMatrixAt(mIdx, dummy.matrix);
-                    addToGrid(tx, tz, 1.5); mIdx++;
+                
+                if(y > -10 && biome.type === 'FOREST') {
+                    if (isPositionFree(tx, tz, 4.0)) { 
+                        dummy.position.set(tx, y, tz);
+                        const s = 0.5 + Math.random() * 1.5; dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*3, 0);
+                        dummy.updateMatrix();
+                        mushStemMesh.setMatrixAt(mIdx, dummy.matrix); mushCapMesh.setMatrixAt(mIdx, dummy.matrix);
+                        addToGrid(tx, tz, 1.5); mIdx++;
+                    }
                 }
             }
             mushStemMesh.count = mIdx; mushCapMesh.count = mIdx;
@@ -781,28 +993,40 @@
 
             let bIdx = 0; let gIdx = 0; let rIdx = 0;
             for(let i=0; i<300000; i++) { 
-                const a = Math.random() * Math.PI * 2; const r = 120 + Math.random() * 14500; 
-                const bx = Math.cos(a) * r; const bz = Math.sin(a) * r;
+                const angle = Math.random() * Math.PI * 2; 
+                const r = 120 + Math.random() * 14500; 
+                const bx = Math.cos(angle) * r; const bz = Math.sin(angle) * r;
                 const y = getMeshHeight(bx, bz);
                 const biome = getBiomeData(bx, bz, y);
+
                 if(y > -10) {
-                    const normal = getSurfaceNormal(bx, bz);
-                    if(bIdx < bushCount && biome.type !== 'SNOW' && normal.y > 0.6) {
-                        dummy.position.set(bx, y, bz);
-                        const s = 1.0 + Math.random() * 2.0; dummy.scale.set(s,s,s); dummy.updateMatrix();
-                        bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
+                    if(bIdx < bushCount && biome.type !== 'SNOW') {
+                         const normal = getSurfaceNormal(bx, bz);
+                         if (normal.y > 0.6) { 
+                            dummy.position.set(bx, y, bz);
+                            const s = 1.0 + Math.random() * 2.0; dummy.scale.set(s,s,s);
+                            dummy.updateMatrix();
+                            bushMesh.setMatrixAt(bIdx, dummy.matrix); bIdx++;
+                         }
                     }
-                    let grassChance = (biome.type === 'GRASSLAND') ? 1.0 : ((biome.type === 'FOREST') ? 0.4 : 0.2);
+                    let grassChance = 0;
+                    if(biome.type === 'GRASSLAND') grassChance = 1.0;
+                    else if(biome.type === 'FOREST') grassChance = 0.4;
+                    else if(biome.type === 'HIGHLANDS') grassChance = 0.2;
+
                     if(gIdx < grassCount && Math.random() < grassChance) {
                         dummy.position.set(bx, y, bz);
                         const s = 0.8 + Math.random() * 0.8; 
-                        dummy.scale.set(s,s,s); dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
+                        dummy.scale.set(s,s,s);
+                        dummy.rotation.set(0, Math.random()*Math.PI, 0); dummy.updateMatrix();
                         grassMesh.setMatrixAt(gIdx, dummy.matrix); gIdx++;
                     }
+                    
                     if(rIdx < 10000 && (biome.type === 'ROCKY_SLOPES' || biome.type === 'MOUNTAIN')) {
                         dummy.position.set(bx, y, bz);
                         const s = 1.0 + Math.random() * 4.0; dummy.scale.set(s,s,s);
-                        dummy.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3); dummy.updateMatrix();
+                        dummy.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+                        dummy.updateMatrix();
                         rockMesh.setMatrixAt(rIdx, dummy.matrix); rIdx++;
                     }
                 }
@@ -829,7 +1053,8 @@
                 const anim = animals[i];
                 if(anim === ignoreMount) continue;
                 if(anim.type === 'cow') {
-                    const dx = px - anim.mesh.position.x; const dz = pz - anim.mesh.position.z;
+                    const dx = px - anim.mesh.position.x;
+                    const dz = pz - anim.mesh.position.z;
                     if(dx*dx + dz*dz < 4.0 * 4.0) return true;
                 }
             }
@@ -861,89 +1086,98 @@
             const time = Date.now() * 0.001;
             const dmgOverlay = document.getElementById('damage-overlay');
             dmgOverlay.style.display = 'none';
+
             let promptText = "";
 
             for(let i=0; i<animals.length; i++) {
-                const anim = animals[i]; anim.timer++;
+                const anim = animals[i];
+                anim.timer++;
 
                 if(anim.type === 'cow') {
-                    // FIXED COW PHYSICS: Use averaged normals and smoother slerp
-                    if (player.isRiding && player.mount === anim) {
-                        // Position updated by player input in main loop to prevent jitter
-                        const t = time * 15; 
+                    if (anim.isFrozen) {
+                        anim.state = 'IDLE';
+                        const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
+                        anim.mesh.position.y = h; 
+                        if (!player.isRiding) {
+                            const d = anim.mesh.position.distanceTo(new THREE.Vector3(player.x, player.y - 8, player.z)); 
+                            if(d < 10.0) {
+                                if(anim.tamed) promptText = "[E] RIDE";
+                                else if(player.grass >= 3) promptText = "[E] FEED (3 GRASS)";
+                            }
+                        }
+                    } else if (player.isRiding && player.mount === anim) {
+                        const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
+                        anim.mesh.position.y = h;
+                        
                         if (keys.w || keys.s || keys.a || keys.d) {
-                            anim.parts.legFL.rotation.x = Math.sin(t) * 0.8; anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
-                            anim.parts.legBL.rotation.x = Math.cos(t) * 0.8; anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
+                            const t = time * 15; 
+                            anim.parts.legFL.rotation.x = Math.sin(t) * 0.8;
+                            anim.parts.legFR.rotation.x = Math.cos(t) * 0.8;
+                            anim.parts.legBL.rotation.x = Math.cos(t) * 0.8;
+                            anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
+                        } else {
+                            anim.parts.legFL.rotation.x = 0; anim.parts.legFR.rotation.x = 0;
+                            anim.parts.legBL.rotation.x = 0; anim.parts.legBR.rotation.x = 0;
                         }
                     } else {
-                        // AI MOVEMENT
                         const dToPlayer = anim.mesh.position.distanceTo(new THREE.Vector3(player.x, player.y, player.z));
-                        if(dToPlayer < 8.0 && !player.isRiding) {
+                        if(dToPlayer < 6.0 && !player.isRiding) {
                             if(anim.tamed) promptText = "[E] RIDE";
                             else if(player.grass >= 3) promptText = "[E] FEED (3 GRASS)";
                             else promptText = "NEED 3 GRASS TO TAME";
                         }
 
-                        if (!anim.isFrozen) {
-                            if (anim.timer > anim.nextStateTime) {
-                                anim.timer = 0; anim.nextStateTime = 100 + Math.random() * 200;
-                                const rand = Math.random();
-                                anim.state = (rand < 0.4) ? 'WALK' : ((rand < 0.7) ? 'EAT' : 'IDLE');
-                                if(anim.state === 'WALK') anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                        if (anim.timer > anim.nextStateTime) {
+                            anim.timer = 0;
+                            anim.nextStateTime = 100 + Math.random() * 200;
+                            const rand = Math.random();
+                            if(rand < 0.4) anim.state = 'WALK';
+                            else if(rand < 0.7) anim.state = 'EAT';
+                            else anim.state = 'IDLE';
+                            if(anim.state === 'WALK') {
+                                anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
                             }
-
-                            if (anim.state === 'WALK') {
-                                const currNormal = getSurfaceNormal(anim.mesh.position.x, anim.mesh.position.z);
-                                if(currNormal.y < 0.8) { anim.dir.x += currNormal.x * 0.1; anim.dir.z += currNormal.z * 0.1; anim.dir.normalize(); }
-                                anim.mesh.position.addScaledVector(anim.dir, 0.04);
-                                
-                                // Smooth Rotation
-                                const targetLook = anim.mesh.position.clone().add(anim.dir);
-                                const dummyQ = new THREE.Object3D(); dummyQ.position.copy(anim.mesh.position); dummyQ.lookAt(targetLook);
-                                anim.mesh.quaternion.slerp(dummyQ.quaternion, 0.1);
-
-                                const t = time * 5 + anim.animOffset;
-                                anim.parts.legFL.rotation.x = Math.sin(t)*0.5; anim.parts.legFR.rotation.x = Math.cos(t)*0.5;
-                                anim.parts.legBL.rotation.x = Math.cos(t)*0.5; anim.parts.legBR.rotation.x = Math.sin(t)*0.5;
-                            } 
-                            
-                            // Align to terrain
-                            const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
-                            anim.mesh.position.y = THREE.MathUtils.lerp(anim.mesh.position.y, h, 0.2);
                         }
+                        if (anim.state === 'WALK') {
+                            const normal = getSurfaceNormal(anim.mesh.position.x, anim.mesh.position.z);
+                            if (normal.y < 0.8) { anim.dir.x += normal.x * 0.2; anim.dir.z += normal.z * 0.2; anim.dir.normalize(); }
+                            anim.mesh.position.addScaledVector(anim.dir, 0.04);
+                            const lookTarget = anim.mesh.position.clone().add(anim.dir);
+                            anim.mesh.lookAt(lookTarget);
+                            anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0, 0.1);
+                            const t = time * 5 + anim.animOffset;
+                            anim.parts.legFL.rotation.x = Math.sin(t) * 0.5;
+                            anim.parts.legFR.rotation.x = Math.cos(t) * 0.5;
+                            anim.parts.legBL.rotation.x = Math.cos(t) * 0.5;
+                            anim.parts.legBR.rotation.x = Math.sin(t) * 0.5;
+                        } 
+                        else if (anim.state === 'EAT') {
+                            anim.parts.neckGroup.rotation.x = THREE.MathUtils.lerp(anim.parts.neckGroup.rotation.x, 0.8, 0.1);
+                            anim.parts.neckGroup.rotation.y = Math.sin(time * 8) * 0.1;
+                        }
+                        const h = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
+                        anim.mesh.position.y = h;
                     }
                     continue; 
                 }
 
                 if (anim.type === 'ant') {
-                    // FIXED ANT PHYSICS: Move slowly, maintain avg height to avoid jitter
-                    const speed = 0.05;
-                    // Look far ahead
-                    const lookAhead = anim.mesh.position.clone().add(anim.dir.clone().multiplyScalar(100));
+                    const speed = 0.02;
+                    const lookAhead = anim.mesh.position.clone().add(anim.dir.clone().multiplyScalar(50));
+                    const nextH = getMeshHeight(lookAhead.x, lookAhead.z);
+                    const currH = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
                     
-                    // Simple pathing
                     anim.mesh.position.addScaledVector(anim.dir, speed);
+                    anim.mesh.position.y = currH + 20; 
                     
-                    // Average height sampling to prevent jitter
-                    const h1 = getMeshHeight(anim.mesh.position.x, anim.mesh.position.z);
-                    const h2 = getMeshHeight(anim.mesh.position.x + 100, anim.mesh.position.z);
-                    const h3 = getMeshHeight(anim.mesh.position.x - 100, anim.mesh.position.z);
-                    const avgH = (h1 + h2 + h3) / 3;
-                    
-                    anim.mesh.position.y = THREE.MathUtils.lerp(anim.mesh.position.y, avgH + 20, 0.05);
-                    
-                    // Smooth turn
-                    const targetQ = new THREE.Object3D(); 
-                    targetQ.position.copy(anim.mesh.position); 
-                    targetQ.lookAt(lookAhead.x, anim.mesh.position.y, lookAhead.z);
-                    anim.mesh.quaternion.slerp(targetQ.quaternion, 0.01);
-                    
-                    // Rare turn
-                    if(Math.random() < 0.002) anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    anim.mesh.lookAt(lookAhead.x, nextH + 20, lookAhead.z);
+
+                    if(Math.random() < 0.001) {
+                         anim.dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    }
                     continue;
                 }
 
-                // BUNNY LOGIC
                 const currentPos = anim.mesh.position;
                 let targetDir = null;
                 const distToPlayer = Math.sqrt((player.x - currentPos.x)**2 + (player.z - currentPos.z)**2);
@@ -958,8 +1192,10 @@
                         dmgOverlay.style.display = 'block';
                         player.health -= 25; 
                         const knockForce = 1.8;
-                        player.knX += targetDir.x * knockForce; player.knZ += targetDir.z * knockForce;
-                        player.velocityY = 0.5; player.isGrounded = false;
+                        player.knX += targetDir.x * knockForce;
+                        player.knZ += targetDir.z * knockForce;
+                        player.velocityY = 0.5; 
+                        player.isGrounded = false;
                         anim.mesh.position.addScaledVector(targetDir, -5.0);
                     }
                 } else {
@@ -983,6 +1219,7 @@
                     anim.parts.legBL.rotation.x = Math.cos(t) * 0.8; anim.parts.legBR.rotation.x = Math.sin(t) * 0.8;
                 }
             }
+
             const promptEl = document.getElementById('interaction-prompt');
             if(promptText !== "") { promptEl.style.display = 'block'; promptEl.innerText = promptText; }
             else promptEl.style.display = 'none';
@@ -994,17 +1231,26 @@
 
             for(let i=0; i<sticks.length; i++) {
                 if(sticks[i].active) {
-                    const dx = player.x - sticks[i].mesh.position.x; const dz = player.z - sticks[i].mesh.position.z;
+                    const dx = player.x - sticks[i].mesh.position.x;
+                    const dz = player.z - sticks[i].mesh.position.z;
+                    // Stick is raised 0.1, grass 0.0, player feet are at y
+                    // Distance check (2d or 3d):
                     if (Math.sqrt(dx*dx + dz*dz) < 1.5) {
-                        sticks[i].active = false; sticks[i].mesh.visible = false; pickupTimer = 100;
+                        sticks[i].active = false;
+                        sticks[i].mesh.visible = false;
+                        pickupTimer = 100;
                         const msg = document.getElementById('pickup-msg');
                         msg.style.opacity = 1;
                         if(sticks[i].type === 'stick') {
-                            player.sticks++; document.getElementById('stick-count').innerText = player.sticks + "/2";
+                            player.sticks++;
+                            document.getElementById('stick-count').innerText = player.sticks + "/2";
                             msg.innerText = "STICK COLLECTED";
-                            if(player.sticks >= 2 && !player.hasHikingSticks) document.getElementById('craft-prompt').style.display = 'block';
+                            if(player.sticks >= 2 && !player.hasHikingSticks) {
+                                document.getElementById('craft-prompt').style.display = 'block';
+                            }
                         } else {
-                            player.grass++; document.getElementById('grass-count').innerText = player.grass;
+                            player.grass++;
+                            document.getElementById('grass-count').innerText = player.grass;
                             msg.innerText = "GRASS COLLECTED";
                         }
                     }
@@ -1012,10 +1258,12 @@
             }
         }
 
+        // --- STATE ---
         const player = { 
             x: 0, z: 0, speed: 0, angle: 0, pitch: 0, y: 0, velocityY: 0, 
             isGrounded: true, stamina: 100, health: 100, isClimbing: false, 
-            sticks: 0, grass: 0, hasHikingSticks: false, knX: 0, knZ: 0,
+            sticks: 0, grass: 0, hasHikingSticks: false,
+            knX: 0, knZ: 0,
             isRiding: false, mount: null
         };
         const keys = { w:0, s:0, a:0, d:0, shift:0, space: 0, e: 0 };
@@ -1023,7 +1271,9 @@
         let hasPointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
         let isLocked = false; let isMouseDown = false;
         let btnUp = false; let btnDown = false;
-        let timeOfDay = 0.5; let smoothCamY = 0; let pickupTimer = 0;
+        let timeOfDay = 0.5;
+        let smoothCamY = 0; 
+        let pickupTimer = 0;
 
         window.addEventListener('keydown', e => {
             if(e.code === 'KeyW') keys.w = 1; if(e.code === 'KeyS') keys.s = 1;
@@ -1032,25 +1282,31 @@
             if(e.code === 'ArrowUp') keys.up = 1; if(e.code === 'ArrowDown') keys.down = 1;
             if(e.code === 'KeyC') {
                 if(player.sticks >= 2 && !player.hasHikingSticks) {
-                    document.getElementById('crafting-menu').style.display = 'block'; document.exitPointerLock();
+                    document.getElementById('crafting-menu').style.display = 'block';
+                    document.exitPointerLock();
                 }
             }
             if(e.code === 'KeyE') {
                 if(player.isRiding) {
-                    // dismount logic in animate
+                    // Dismount handled in animate
                 } else {
                     let nearest = null; let minDst = 12.0; 
                     for(let i=0; i<animals.length; i++) {
                         if(animals[i].type === 'cow') {
+                            // Check distance to player or player's elevated position
                             const d = animals[i].mesh.position.distanceTo(new THREE.Vector3(player.x, animals[i].mesh.position.y, player.z));
                             if(d < minDst) { minDst = d; nearest = animals[i]; }
                         }
                     }
                     if(nearest) {
-                        if(nearest.tamed) { player.isRiding = true; player.mount = nearest; } 
-                        else if(player.grass >= 3) {
-                            player.grass -= 3; document.getElementById('grass-count').innerText = player.grass;
-                            nearest.tamed = true; nearest.mesh.scale.multiplyScalar(1.1); 
+                        if(nearest.tamed) {
+                            player.isRiding = true;
+                            player.mount = nearest;
+                        } else if(player.grass >= 3) {
+                            player.grass -= 3;
+                            document.getElementById('grass-count').innerText = player.grass;
+                            nearest.tamed = true;
+                            nearest.mesh.scale.multiplyScalar(1.1); 
                         }
                     }
                 }
@@ -1089,95 +1345,146 @@
         });
 
         function getEntityHeight(x, z, groundY) {
-            let maxH = groundY; let onEntity = false;
+            let maxH = groundY;
+            let onEntity = false;
+
             for(let i=0; i<animals.length; i++) {
                 const anim = animals[i];
                 if (anim.type === 'cow') {
-                    const dx = x - anim.mesh.position.x; const dz = z - anim.mesh.position.z;
+                    const dx = x - anim.mesh.position.x;
+                    const dz = z - anim.mesh.position.z;
                     if (Math.sqrt(dx*dx + dz*dz) < 6.0) {
                          const cowTop = anim.mesh.position.y + 9.2; 
                          if (player.y > anim.mesh.position.y + 5.0 && Math.abs(player.y - cowTop) < 10.0) {
-                             maxH = Math.max(maxH, cowTop); anim.isFrozen = true; onEntity = true;
-                         } else anim.isFrozen = false;
-                    } else anim.isFrozen = false;
+                             maxH = Math.max(maxH, cowTop);
+                             anim.isFrozen = true; 
+                             onEntity = true;
+                         } else {
+                             anim.isFrozen = false;
+                         }
+                    } else {
+                        anim.isFrozen = false;
+                    }
                 } else if (anim.type === 'ant') {
                     const scale = 20.0;
-                    const dx = x - anim.mesh.position.x; const dz = z - anim.mesh.position.z;
+                    const dx = x - anim.mesh.position.x;
+                    const dz = z - anim.mesh.position.z;
                     const theta = -Math.atan2(anim.dir.z, anim.dir.x);
                     const rx = dx * Math.cos(theta) - dz * Math.sin(theta);
                     const rz = dx * Math.sin(theta) + dz * Math.cos(theta);
-                    // Hitboxes for Abdomen/Thorax/Legs
-                    const abDist = Math.sqrt(rx*rx + (rz-500)*(rz-500));
-                    if (abDist < 380) { // Widen for playability
-                         const sphereH = Math.sqrt(Math.max(0, 380*380 - abDist*abDist));
-                         maxH = Math.max(maxH, anim.mesh.position.y + 280 + sphereH * 0.5); onEntity = true;
+
+                    const abdx = rx - 0; const abdz = rz - 500;
+                    if (Math.sqrt(abdx*abdx + abdz*abdz) < 350) {
+                         const sphereH = Math.sqrt(Math.max(0, 350*350 - (abdx*abdx + abdz*abdz)));
+                         maxH = Math.max(maxH, anim.mesh.position.y + 300 + sphereH * 0.5);
+                         onEntity = true;
                     }
-                    const thDist = Math.sqrt(rx*rx + rz*rz);
-                    if (thDist < 280) {
-                        const sphereH = Math.sqrt(Math.max(0, 280*280 - thDist*thDist));
-                        maxH = Math.max(maxH, anim.mesh.position.y + 220 + sphereH * 0.5); onEntity = true;
+
+                    const thdx = rx - 0; const thdz = rz - 0;
+                    if (Math.sqrt(thdx*thdx + thdz*thdz) < 250) {
+                        const sphereH = Math.sqrt(Math.max(0, 250*250 - (thdx*thdx + thdz*thdz)));
+                        maxH = Math.max(maxH, anim.mesh.position.y + 240 + sphereH * 0.5);
+                        onEntity = true;
                     }
-                    if (Math.abs(rx) > 180 && Math.abs(rx) < 450 && Math.abs(rz) < 650) {
-                         const legDist = Math.abs(rx) - 180; 
+                    
+                    if (Math.abs(rx) > 200 && Math.abs(rx) < 400 && Math.abs(rz) < 600) {
+                         const legDist = Math.abs(rx) - 200; 
                          const rampH = anim.mesh.position.y + legDist;
-                         if (Math.abs(player.y - rampH) < 80) { maxH = Math.max(maxH, rampH); onEntity = true; }
+                         if (Math.abs(player.y - rampH) < 50) {
+                             maxH = Math.max(maxH, rampH);
+                             onEntity = true;
+                         }
                     }
                 }
             }
             return { h: maxH, onEntity: onEntity };
         }
 
+        // Logic hooked to HTML button
         window.startGameLogic = function() {
-            generateTerrain(); spawnCollectibles(); spawnAnimals(); plantVegetation();
+            generateTerrain();
+            spawnCollectibles();
+            spawnAnimals();
+            plantVegetation();
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
-            gameActive = true; animate();
+            gameActive = true;
+            animate();
         };
 
         function animate() {
             requestAnimationFrame(animate); if(!gameActive) return;
             
-            updateDayNight(); updateAnimals(); checkStickPickup();
+            updateDayNight();
+            updateAnimals();
+            checkStickPickup();
+            
             if (player.health <= 0) {
-                gameActive = false; document.getElementById('game-over-screen').style.display = 'flex';
-                document.exitPointerLock(); return;
+                gameActive = false;
+                document.getElementById('game-over-screen').style.display = 'flex';
+                document.exitPointerLock();
+                return;
             }
+
             grassMaterial.uniforms.time.value = performance.now() * 0.001;
 
-            if(keys.up || btnUp) player.pitch += 0.03; if(keys.down || btnDown) player.pitch -= 0.03;
-            const maxDown = -Math.PI/2 + 0.1; const maxUp = Math.PI/2.2; 
+            if(keys.up || btnUp) player.pitch += 0.03;
+            if(keys.down || btnDown) player.pitch -= 0.03;
+            const maxDown = -Math.PI / 2 + 0.1; const maxUp = Math.PI / 2.2; 
             if(player.pitch > maxUp) player.pitch = maxUp; if(player.pitch < maxDown) player.pitch = maxDown;
 
             const normal = getSurfaceNormal(player.x, player.z);
-            let slopeAngle = Math.acos(normal.y); let slopePercent = Math.tan(slopeAngle) * 100;
+            let slopeAngle = Math.acos(normal.y);
+            let slopePercent = Math.tan(slopeAngle) * 100;
 
             const groundY = getMeshHeight(player.x, player.z);
             const entityCheck = getEntityHeight(player.x, player.z, groundY);
-            const finalGroundY = entityCheck.h; const onEntity = entityCheck.onEntity;
-            if (onEntity) { slopePercent = 0; slopeAngle = 0; }
+            const finalGroundY = entityCheck.h;
+            const onEntity = entityCheck.onEntity;
+
+            if (onEntity) {
+                slopePercent = 0; 
+                slopeAngle = 0;
+            }
 
             const IMPOSSIBLE_SLOPE = player.hasHikingSticks ? 360 : 150;
+            const CLIMB_ENTER = 60;
+            const CLIMB_EXIT = 50;
+
             let isImpossible = slopePercent > IMPOSSIBLE_SLOPE;
             
-            if (!player.isClimbing && slopePercent > 60 && !isImpossible && !player.isRiding && !onEntity) player.isClimbing = true;
-            else if (player.isClimbing && slopePercent < 50) player.isClimbing = false;
-            else if (isImpossible && !onEntity) player.isClimbing = false;
+            if (!player.isClimbing && slopePercent > CLIMB_ENTER && !isImpossible && !player.isRiding && !onEntity) {
+                player.isClimbing = true;
+            } else if (player.isClimbing && slopePercent < CLIMB_EXIT) {
+                player.isClimbing = false;
+            } else if (isImpossible && !onEntity) {
+                player.isClimbing = false;
+            }
 
             if (player.isRiding && keys.space) {
                 const mount = player.mount;
-                player.isRiding = false; player.mount = null;
-                player.x = mount.mesh.position.x; player.z = mount.mesh.position.z;
+                player.isRiding = false;
+                player.mount = null;
+                player.x = mount.mesh.position.x;
+                player.z = mount.mesh.position.z;
                 player.y = mount.mesh.position.y + 10.0;
-                player.velocityY = 0; player.isGrounded = true; lastSpacePress = true;
+                player.velocityY = 0;
+                player.isGrounded = true;
+                lastSpacePress = true;
             }
 
-            const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; const COW_SPEED = 0.9; 
+            const WALK_SPEED = 0.15; const SPRINT_SPEED = 0.35; const CLIMB_SPEED = 0.1; 
+            const COW_SPEED = 1.2; 
             const GRAVITY = 0.02;
             const isMoving = (keys.w || keys.s || keys.a || keys.d);
             let isSprinting = false;
 
             if (player.isClimbing) {
-                if (isMoving) player.stamina -= 0.15; else player.stamina += 0.15;
+                if (isMoving) {
+                    player.stamina -= 0.15; 
+                } else {
+                    player.stamina += 0.15; 
+                }
                 if (player.stamina <= 0) { player.isClimbing = false; isImpossible = true; }
             } else if (keys.shift && isMoving && player.stamina > 0 && !isImpossible && !player.isRiding) {
                 isSprinting = true; player.stamina -= 0.3;
@@ -1187,12 +1494,16 @@
             if(player.stamina < 0) player.stamina = 0; if(player.stamina > 100) player.stamina = 100;
             
             document.getElementById('stamina-bar').style.width = player.stamina + "%";
-            document.getElementById('stamina-bar').style.background = (player.stamina < 20) ? "#ff3333" : "#00ddee";
+            if(player.stamina < 20) document.getElementById('stamina-bar').style.background = "#ff3333";
+            else document.getElementById('stamina-bar').style.background = "#00ddee";
+            
             document.getElementById('health-bar').style.width = player.health + "%";
+
             document.getElementById('alt-disp').innerText = Math.round(player.y) + "m";
             document.getElementById('slope-disp').innerText = Math.round(slopePercent) + "%";
             document.getElementById('slope-disp').className = "stat-val " + (isImpossible ? "danger" : (player.isClimbing ? "climb" : ""));
-            document.getElementById('biome-disp').innerText = getBiomeData(player.x, player.z, player.y).type;
+            const biomeInfo = getBiomeData(player.x, player.z, player.y);
+            document.getElementById('biome-disp').innerText = biomeInfo.type;
 
             let dx = 0, dz = 0;
             let maxSpeed = player.isRiding ? COW_SPEED : (player.isClimbing ? CLIMB_SPEED : (isSprinting ? SPRINT_SPEED : WALK_SPEED));
@@ -1211,16 +1522,24 @@
             if (dx !== 0 || dz !== 0) {
                 const len = Math.sqrt(dx*dx + dz*dz);
                 dx = (dx/len) * maxSpeed; dz = (dz/len) * maxSpeed;
+                
                 if (player.isClimbing) {
-                    const slopeRatio = Math.tan(slopeAngle); const surfaceFactor = Math.sqrt(1 + slopeRatio * slopeRatio);
-                    dx /= surfaceFactor; dz /= surfaceFactor;
+                    const slopeRatio = Math.tan(slopeAngle); 
+                    const surfaceFactor = Math.sqrt(1 + slopeRatio * slopeRatio);
+                    dx /= surfaceFactor;
+                    dz /= surfaceFactor;
                 }
             }
             
-            if (isImpossible && !player.isRiding && !onEntity) { dx += normal.x * 0.4; dz += normal.z * 0.4; }
+            if (isImpossible && !player.isRiding && !onEntity) {
+                dx += normal.x * 0.4; dz += normal.z * 0.4; 
+            }
 
-            player.knX *= 0.9; player.knZ *= 0.9;
-            const finalDx = dx + player.knX; const finalDz = dz + player.knZ;
+            player.knX *= 0.9;
+            player.knZ *= 0.9;
+            const finalDx = dx + player.knX;
+            const finalDz = dz + player.knZ;
+
             player.speed = THREE.MathUtils.lerp(player.speed, Math.sqrt(finalDx*finalDx + finalDz*finalDz), 0.1);
             
             if(player.isRiding && player.mount) {
@@ -1231,63 +1550,63 @@
                 const newMZ = mount.mesh.position.z + mDz;
                 
                 if (!checkTreeCollision(newMX, newMZ)) {
-                    mount.mesh.position.x = newMX; mount.mesh.position.z = newMZ;
+                    mount.mesh.position.x = newMX;
+                    mount.mesh.position.z = newMZ;
                 }
                 
-                // --- FIXED COW ORIENTATION ---
-                // Sample 3 points to determine plane
-                const p1 = mount.mesh.position.clone();
-                const p2 = p1.clone().add(new THREE.Vector3(2, 0, 2));
-                const p3 = p1.clone().add(new THREE.Vector3(-2, 0, 2));
-                const h1 = getMeshHeight(p1.x, p1.z);
-                const h2 = getMeshHeight(p2.x, p2.z);
-                const h3 = getMeshHeight(p3.x, p3.z);
-                
-                // Set height to average
-                mount.mesh.position.y = THREE.MathUtils.lerp(mount.mesh.position.y, h1, 0.2);
+                const centerNorm = getSurfaceNormal(mount.mesh.position.x, mount.mesh.position.z);
+                const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(mount.mesh.quaternion);
+                const headX = mount.mesh.position.x + fwd.x * 2.0;
+                const headZ = mount.mesh.position.z + fwd.z * 2.0;
+                const headNorm = getSurfaceNormal(headX, headZ);
+                const targetNorm = centerNorm.clone().add(headNorm).normalize();
+                mount.mesh.up.lerp(targetNorm, 0.6); 
 
-                // Calculate normal of current standing
-                const vA = new THREE.Vector3(p2.x - p1.x, h2 - h1, p2.z - p1.z);
-                const vB = new THREE.Vector3(p3.x - p1.x, h3 - h1, p3.z - p1.z);
-                const groundNorm = new THREE.Vector3().crossVectors(vA, vB).normalize();
-                if(groundNorm.y < 0) groundNorm.negate();
-
-                // Smoothly orient UP vector
-                const targetUp = groundNorm;
-                mount.mesh.up.lerp(targetUp, 0.1);
-                
-                // Rotation (Heading)
+                let lookTarget;
                 if (Math.abs(mDx) > 0.001 || Math.abs(mDz) > 0.001) {
                     const moveDir = new THREE.Vector3(mDx, 0, mDz).normalize();
-                    const targetLook = mount.mesh.position.clone().add(moveDir);
-                    const dummyLook = new THREE.Object3D();
-                    dummyLook.position.copy(mount.mesh.position); dummyLook.up.copy(mount.mesh.up);
-                    dummyLook.lookAt(targetLook);
-                    mount.mesh.quaternion.slerp(dummyLook.quaternion, 0.1);
+                    const right = new THREE.Vector3(0, 1, 0).cross(moveDir).normalize();
+                    const slopeFwd = targetNorm.clone().cross(right).normalize();
+                    lookTarget = mount.mesh.position.clone().add(slopeFwd.multiplyScalar(10));
+                } else {
+                    const currentFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(mount.mesh.quaternion);
+                    lookTarget = mount.mesh.position.clone().add(currentFwd.multiplyScalar(10));
                 }
+                mount.mesh.lookAt(lookTarget);
 
-                player.x = mount.mesh.position.x; player.z = mount.mesh.position.z; player.y = mount.mesh.position.y + 2;
+                player.x = mount.mesh.position.x;
+                player.z = mount.mesh.position.z;
+                
                 playerMesh.visible = false;
+
             } else {
                 playerMesh.visible = true;
+                
                 player.isGrounded = (player.y <= finalGroundY + 0.1);
                 
                 if (!player.isGrounded && !player.isClimbing) {
                     player.velocityY -= GRAVITY;
                 } else {
                     if (player.velocityY < -0.6) { 
-                        player.health -= Math.abs(player.velocityY) * 40; document.getElementById('damage-overlay').style.display = 'block';
+                        const dmg = Math.abs(player.velocityY) * 40;
+                        player.health -= dmg;
+                        document.getElementById('damage-overlay').style.display = 'block';
                     }
+                    
                     player.velocityY = Math.max(0, player.velocityY);
                     if (keys.space && !lastSpacePress && player.stamina > 10 && !isImpossible && !player.isClimbing) {
                         player.velocityY = 0.4; player.isGrounded = false; player.stamina -= 10; lastSpacePress = true;
                     }
                 }
                 
-                if (player.isClimbing) player.velocityY = 0;
+                if (player.isClimbing) {
+                    player.velocityY = 0;
+                }
+
                 player.y += player.velocityY;
                 
-                const newX = player.x + finalDx; const newZ = player.z + finalDz;
+                const newX = player.x + finalDx; 
+                const newZ = player.z + finalDz;
 
                 if (!checkTreeCollision(newX, newZ) && !checkEntityCollision(newX, newZ, onEntity ? player.mount : null)) { 
                     player.x = newX; player.z = newZ; 
@@ -1299,41 +1618,51 @@
                 const nextGroundCheck = getEntityHeight(player.x, player.z, getMeshHeight(player.x, player.z));
                 const nextGroundY = nextGroundCheck.h;
                 
-                if (player.isClimbing) player.y = nextGroundY;
-                if (player.y < nextGroundY) { player.y = nextGroundY; player.velocityY = 0; player.isGrounded = true; }
+                if (player.isClimbing) {
+                    player.y = nextGroundY;
+                }
+                
+                if (player.y < nextGroundY) {
+                    player.y = nextGroundY;
+                    player.velocityY = 0;
+                    player.isGrounded = true;
+                }
+                
+                const targetCamY = player.y + 1.7;
+                smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); 
             }
 
             if (isMoving && player.isGrounded) { animationTime += (isSprinting ? 0.3 : 0.15); }
             
-            // CAMERA
-            let targetCamY = player.y + 1.7;
-            if (player.isRiding) {
-                const seatOffset = new THREE.Vector3(0, 11.0, 0.5); 
-                seatOffset.applyQuaternion(player.mount.mesh.quaternion);
-                const mountPos = player.mount.mesh.position.clone().add(seatOffset);
-                
-                // Damped camera follow
-                player.x = THREE.MathUtils.lerp(player.x, mountPos.x, 0.5);
-                player.z = THREE.MathUtils.lerp(player.z, mountPos.z, 0.5);
-                targetCamY = mountPos.y;
-            }
-            
-            smoothCamY = THREE.MathUtils.lerp(smoothCamY, targetCamY, 0.2); 
-
             if (player.isClimbing && isMoving) {
                 const climbCycle = animationTime * 0.5;
                 charParts.leftArm.rotation.x = -2.0 + Math.sin(climbCycle) * 0.6;
                 charParts.rightArm.rotation.x = -2.0 + Math.cos(climbCycle) * 0.6;
-                camera.position.set(player.x, smoothCamY + Math.sin(animationTime * 0.8) * 0.05, player.z);
+                const bobOffset = Math.sin(animationTime * 0.8) * 0.05;
+                camera.position.set(player.x, smoothCamY + bobOffset, player.z);
+            } else if (player.isRiding) {
+                const seatOffset = new THREE.Vector3(0, 11.0, 0.5); 
+                seatOffset.applyQuaternion(player.mount.mesh.quaternion);
+                
+                const camPos = player.mount.mesh.position.clone().add(seatOffset);
+                const bobOffset = Math.sin(animationTime * 1.5) * 0.1; 
+                
+                camera.position.copy(camPos);
+                camera.position.y += bobOffset;
             } else {
-                camera.position.set(player.x, smoothCamY + Math.sin(animationTime) * 0.08, player.z);
+                const bobOffset = Math.sin(animationTime) * 0.08;
+                const swayOffset = Math.cos(animationTime * 0.5) * 0.04;
+                camera.position.set(player.x + swayOffset, smoothCamY + bobOffset, player.z);
                 if (charParts.leftLeg) {
                     const walkCycle = Math.sin(animationTime);
                     charParts.leftLeg.rotation.x = walkCycle * 0.5; charParts.rightLeg.rotation.x = -walkCycle * 0.5;
                     charParts.leftArm.rotation.x = -walkCycle * 0.5; charParts.rightArm.rotation.x = walkCycle * 0.5;
                 }
             }
-            camera.rotation.x = player.pitch; camera.rotation.y = player.angle;
+            
+            camera.rotation.x = player.pitch;
+            camera.rotation.y = player.angle;
+
             playerMesh.position.set(player.x, smoothCamY - 1.7, player.z);
             playerMesh.rotation.y = player.angle + Math.PI; 
 
@@ -1342,3 +1671,4 @@
     </script>
 </body>
 </html>
+
